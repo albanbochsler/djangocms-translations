@@ -7,24 +7,22 @@ from django.contrib.sites.models import Site
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import BooleanField
 from django.forms import modelform_factory
-from functools import lru_cache
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language_info
-
 from djangocms_transfer.utils import get_plugin_class, get_plugin_model
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 from yurl import URL
 
+from functools import lru_cache
 from .conf import TRANSLATIONS_CONF
-
+from urllib.parse import urljoin
 
 try:
     from urllib.parse import urljoin
 except ImportError:
     from urlparse import urljoin
-
 
 USE_HTTPS = getattr(settings, 'URLS_USE_HTTPS', False)
 

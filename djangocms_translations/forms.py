@@ -2,8 +2,8 @@
 from django import forms
 from django.conf import settings
 from django.utils import timezone
-from django.utils.html import format_html
 from django.utils.formats import date_format
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
@@ -171,6 +171,8 @@ class TranslateInBulkStep2Form(forms.Form):
             )
             for page in self.cleaned_data['pages']
         ]
+        # delete existing items before creating new ones
+        self.translation_request.items.all().delete()
         models.TranslationRequestItem.objects.bulk_create(translation_request_items)
         self.translation_request.set_provider_order_name(self.cleaned_data['pages'][0])
 
@@ -219,14 +221,13 @@ class ChooseTranslationQuoteForm(forms.ModelForm):
             '{}<br><br>'
             'Delivery until: {}<br>'
             'Price: {} {}'
-        ), obj.delivery_date_name, obj.name, obj.description, formatted_delivery_date, obj.price_currency,
-            obj.price_amount)
+        ), obj.delivery_date_name, obj.name, obj.description, formatted_delivery_date, obj.price_currency, obj.price_amount)
+
 
     def fix_widget_choices(self):
         widget = self.fields['selected_quote'].widget
         new_widget_choices = []
-        for translation_quote in models.TranslationQuote.objects.filter(
-            pk__in=[choice[0].instance.pk for choice in widget.choices]):
+        for translation_quote in models.TranslationQuote.objects.filter(pk__in=[choice[0].instance.pk for choice in widget.choices]):
             new_widget_choices.append((translation_quote.pk, self.get_choice_label(translation_quote)))
         widget.choices = new_widget_choices
 

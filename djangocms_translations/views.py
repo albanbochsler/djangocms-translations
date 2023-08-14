@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -61,7 +63,9 @@ def process_provider_callback_view(request, pk):
         .filter(state=TranslationRequest.STATES.IN_TRANSLATION)
     )
     trans_request = get_object_or_404(requests, pk=pk)
-    success = trans_request.import_response(request.body)
+    # convert request body to dict
+    request_body = json.loads(request.body)
+    success = trans_request.import_response(request_body)
     return JsonResponse({'success': success})
 
 

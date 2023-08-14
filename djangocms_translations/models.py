@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 
 import json
 import logging
-
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
@@ -23,15 +22,21 @@ from djangocms_transfer.importer import import_plugins_to_page
 from djangocms_transfer.utils import get_plugin_class
 from extended_choices import Choices
 
-from .providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider
-from .utils import get_plugin_form
-
+from .providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
+from .utils import get_plugin_form, pretty_json
 
 logger = logging.getLogger('djangocms_translations')
 
 
 def _get_placeholder_slot(archived_placeholder):
     return archived_placeholder.slot
+
+
+class BytesEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            return obj.decode('utf-8')
+        return json.JSONEncoder.default(self, obj)
 
 
 class TranslationRequest(models.Model):
@@ -48,9 +53,10 @@ class TranslationRequest(models.Model):
         ('CANCELLED', 'cancelled', _('Cancelled')),
     )
 
-    PROVIDERS = Choices(
-        ('SUPERTEXT', SupertextTranslationProvider.__name__, _('Supertext')),
-    )
+    PROVIDERS = [
+        (SupertextTranslationProvider.__name__, _('Supertext')),
+        (GptTranslationProvider.__name__, _('GPT'))
+    ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     state = models.CharField(choices=STATES, default=STATES.DRAFT, max_length=100)
@@ -76,6 +82,7 @@ class TranslationRequest(models.Model):
         if not self._provider and self.provider_backend:
             self._provider = TRANSLATION_PROVIDERS.get(self.provider_backend)(self)
         return self._provider
+
     _provider = None
 
     def set_status(self, status, commit=True):
@@ -114,7 +121,6 @@ class TranslationRequest(models.Model):
         self.set_status(self.STATES.PENDING_QUOTE)
 
         provider_quote = self.provider.get_quote()
-
         currency = provider_quote['Currency']
         date_received = timezone.now()
         quotes = []
@@ -162,7 +168,7 @@ class TranslationRequest(models.Model):
     def import_response(self, raw_data):
         import_state = TranslationImport.objects.create(request=self)
         self.set_status(self.STATES.IMPORT_STARTED)
-        self.order.response_content = raw_data.decode('utf-8')
+        self.order.response_content = raw_data
         self.order.save(update_fields=('response_content',))
 
         try:
@@ -198,7 +204,7 @@ class TranslationRequest(models.Model):
         self.date_imported = timezone.now()
         self.save(update_fields=('date_imported', 'state'))
         import_state.state = import_state.STATES.IMPORTED
-        import_state.save(update_fields=('state', ))
+        import_state.save(update_fields=('state',))
         return True
 
     def can_import_from_archive(self):
@@ -284,14 +290,16 @@ class TranslationRequestItem(models.Model):
         if self.translation_request.source_language not in page_languages:
             raise ValidationError({
                 'source_cms_page':
-                _('Invalid choice. Page must contain {} translation.').format(self.translation_request.source_language)
+                    _('Invalid choice. Page must contain {} translation.').format(
+                        self.translation_request.source_language)
             })
 
         page_languages = self.target_cms_page.get_languages()
         if self.translation_request.target_language not in page_languages:
             raise ValidationError({
                 'target_cms_page':
-                _('Invalid choice. Page must contain {} translation.').format(self.translation_request.target_language)
+                    _('Invalid choice. Page must contain {} translation.').format(
+                        self.translation_request.target_language)
             })
 
         return super(TranslationRequestItem, self).clean()
