@@ -1,5 +1,9 @@
 from . import models
 from django import forms
+from django.utils.formats import date_format
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
+from django.utils.translation import ugettext_lazy as _
 
 
 class CreateTranslationForm(forms.ModelForm):
@@ -64,3 +68,28 @@ class ChooseTranslationQuoteForm(forms.ModelForm):
         widgets = {
             'selected_quote': forms.RadioSelect(),
         }
+
+    def get_choice_label(self, obj):
+        formatted_delivery_date = date_format(obj.delivery_date, "d. F Y")
+        return format_html(_(
+            '<strong>({}) {}</strong><br>'
+            '{}<br><br>'
+            'Delivery until: {}<br>'
+            'Price: {} {}'
+        ), obj.delivery_date_name, obj.name, obj.description, formatted_delivery_date, obj.price_currency,
+            obj.price_amount)
+
+    def fix_widget_choices(self):
+        widget = self.fields['selected_quote'].widget
+        new_widget_choices = []
+        for translation_quote in models.AppTranslationQuote.objects.filter(
+            pk__in=[choice[0].instance.pk for choice in widget.choices]):
+            new_widget_choices.append((translation_quote.pk, self.get_choice_label(translation_quote)))
+        widget.choices = new_widget_choices
+
+    def __init__(self, *args, **kwargs):
+        super(ChooseTranslationQuoteForm, self).__init__(*args, **kwargs)
+        self.fields['selected_quote'].required = True
+        self.fields['selected_quote'].queryset = self.instance.quotes.all()
+        self.fields['selected_quote'].empty_label = None
+        self.fix_widget_choices()

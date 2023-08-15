@@ -19,6 +19,7 @@ class CreateTranslationRequestView(CreateView):
     form_class = forms.CreateTranslationForm
 
     def get_success_url(self):
+        print("self.object.pk: ", self.object.pk)
         # return reverse('admin:djangocms_translations_apptranslationrequest_changelist')
         return reverse('admin:choose-app-translation-quote', kwargs={'pk': self.object.pk})
 

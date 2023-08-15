@@ -148,11 +148,13 @@ class AppTranslationRequest(models.Model):
         self.set_status(self.STATES.PENDING_QUOTE)
 
         provider_quote = self.provider.get_quote()
+
         currency = provider_quote['Currency']
         date_received = timezone.now()
         quotes = []
 
         for option in provider_quote['Options']:
+            print("option", option)
             order_type_id = option['OrderTypeId']
             name = '{} ({})'.format(option['Name'], option['ShortDescription'])
             description = option['Description']
@@ -172,7 +174,7 @@ class AppTranslationRequest(models.Model):
                     date_received=date_received,
                 )
                 quotes.append(quote)
-
+        print("quotes", quotes)
         self.set_status(self.STATES.PENDING_APPROVAL)
 
     def import_response(self, raw_data):

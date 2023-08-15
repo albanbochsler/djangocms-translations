@@ -175,12 +175,12 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
                 name='create-app-translation-request',
             ),
             url(
-                r'(?P<pk>\w+)/get-quote-from-provider/$',
+                r'(?P<pk>\w+)/get-app-quote-from-provider/$',
                 views.get_quote_from_provider_view,
-                name='get-quote-from-provider',
+                name='get-app-quote-from-provider',
             ),
             url(
-                r'(?P<pk>\w+)/choose-quote/$',
+                r'(?P<pk>\w+)/choose-app-quote/$',
                 views.ChooseTranslationQuoteView.as_view(),
                 name='choose-app-translation-quote',
             ),
@@ -207,7 +207,7 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
                 'onclick="window.django.jQuery.ajax({{'  # noqa
                 'method: \'POST\', headers: {headers}, url: \'{url}\', success: {refresh_window_callback}'
                 '}});" href="#">{title}</a>'.format(
-                    url=reverse('admin:get-quote-from-provider', args=(obj.pk,)),
+                    url=reverse('admin:get-app-quote-from-provider', args=(obj.pk,)),
                     title=_('Refresh'),
                     headers='{\'X-CSRFToken\': document.cookie.match(/csrftoken=(\w+)(;|$)/)[1]}',
                     refresh_window_callback='function () {window.location.reload()}',
@@ -239,7 +239,7 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
             '{status} {action} {task}',
             status=obj.get_state_display(),
             action=action,
-            task=render_task_status(obj)
+            task=render_task_status(obj) if obj.state == models.AppTranslationRequest.STATES.IN_TRANSLATION else "",
         )
 
     pretty_status.short_description = _('Status')
@@ -262,10 +262,11 @@ class TranslateAppMixin(object):
         request_items = items.filter(link_object_id=obj.pk)
         if request_items:
             translation_request = request_items.order_by("-id").first().translation_request
-            return translation_request.get_state_display()
+            return translation_request
         return None
 
     def send_translation_request(self, obj):
+
         def render_action(url, title):
             return mark_safe(
                 '<a class="lang-code current active djangocms_translations" href="{url}"><i class="material-icons">translate</i></a>'
@@ -289,10 +290,27 @@ class TranslateAppMixin(object):
         )
 
     def translation_request_status(self, obj):
+        action = ''
+        print(self.get_translation_request_items(obj), models.AppTranslationRequest.STATES.PENDING_APPROVAL)
+
+        def render_action(url, title):
+            return mark_safe(
+                '<a class="button" href="{url}">{title}</a>'
+                .format(url=url, title=title)
+            )
+
+        if self.get_translation_request_items(obj).state == \
+           models.AppTranslationRequest.STATES.PENDING_APPROVAL if self.get_translation_request_items(obj) else "":
+            action = render_action(
+                reverse('admin:choose-app-translation-quote', args=(self.get_translation_request_items(obj).pk,)),
+                _('Choose quote'),
+            )
+
         return format_html(
-            '{status}',
-            status=self.get_translation_request_items(obj) if self.get_translation_request_items(
+            '{status} {action}',
+            status=self.get_translation_request_items(obj).get_state_display() if self.get_translation_request_items(
                 obj) else "",
+            action=action,
         )
 
     send_translation_request.short_description = 'Translate'
