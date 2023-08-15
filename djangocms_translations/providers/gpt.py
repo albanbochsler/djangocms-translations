@@ -217,12 +217,15 @@ class GptTranslationProvider(BaseTranslationProvider):
 
     def get_quote(self):
         self.request.request_content = self.get_export_data()
+        print("self.request.request_content = ", self.request.request_content)
         self.request.save(update_fields=('request_content',))
         response = self.make_request(
             method='post',
             section='/quote',
             json=self.request.request_content,
         )
+
+        print("response = ", response, response.json())
 
         return response.json()
 
@@ -237,12 +240,18 @@ class GptTranslationProvider(BaseTranslationProvider):
 
         return response
 
-    def send_request(self):
+    def send_request(self, is_app=False):
         from ..models import TranslationOrder
+        from ..mixins.models import AppTranslationOrder
 
         request = self.request
+        print("request = ", request, is_app)
+        if is_app:
+            callback_url = add_domain(
+                reverse('admin:app-translation-request-provider-callback', kwargs={'pk': request.pk}))
+        else:
+            callback_url = add_domain(reverse('admin:translation-request-provider-callback', kwargs={'pk': request.pk}))
 
-        callback_url = add_domain(reverse('admin:translation-request-provider-callback', kwargs={'pk': request.pk}))
         data = self.request.request_content
         data.update({
             'OrderName': request.provider_order_name,
@@ -257,10 +266,16 @@ class GptTranslationProvider(BaseTranslationProvider):
             data.update(request.selected_quote.provider_options)
 
         # Enables retrying requests to Supertext after error from Supertext API
-        order, created = TranslationOrder.objects.get_or_create(
-            request=request,
-            defaults={'request_content': data}
-        )
+        if is_app:
+            order, created = AppTranslationOrder.objects.get_or_create(
+                request=request,
+                defaults={'request_content': data}
+            )
+        else:
+            order, created = TranslationOrder.objects.get_or_create(
+                request=request,
+                defaults={'request_content': data}
+            )
 
         # Make request to OpenAI API
 

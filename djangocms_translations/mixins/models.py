@@ -1,10 +1,17 @@
+import json
+import logging
+
+from cms.utils.copy_plugins import copy_plugins_to
 from django import forms
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from djangocms_transfer.exporter import get_placeholder_export_data
+from djangocms_transfer.importer import import_plugins
 from extended_choices import Choices
 from django.conf import settings
-import json
-from django.db import models
+from django.utils import timezone
+
+from django.db import models, IntegrityError
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
@@ -14,6 +21,7 @@ from allink_core.core.utils import get_model
 from ..providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
 
 __all__ = ['AppTranslationRequest']
+logger = logging.getLogger('djangocms_translations')
 
 
 def get_app_export_data(obj, language):
@@ -27,8 +35,29 @@ def get_app_export_data(obj, language):
 
     for placeholder_name, placeholder in placeholders.items():
         plugins = get_placeholder_export_data(placeholder, language)
-        data.append({'placeholder': placeholder.slot, 'plugins': plugins})
+        data.append({'placeholder': placeholder_name, 'plugins': plugins})
+        # data.append({'placeholder': placeholder.slot, 'plugins': plugins})
+
     return data
+
+
+def import_plugins_to_app(placeholders, obj, language):
+    old_placeholders = {}
+
+    for field in obj._meta.get_fields():
+        if field.get_internal_type() == 'PlaceholderField':
+            old_placeholders[field.name] = getattr(obj, field.name)
+    print("old_placeholders", old_placeholders, old_placeholders["header_placeholder"])
+
+    for archived_placeholder in placeholders:
+        plugins = archived_placeholder.plugins
+        print("plugins", plugins)
+        placeholder = old_placeholders[archived_placeholder.slot]
+        # placeholder = old_placeholders.get(archived_placeholder.slot)
+        print("placeholder", placeholder)
+        if placeholder and plugins:
+            import_plugins(plugins, placeholder, language)
+            print("import_plugins(plugins, placeholder, language)")
 
 
 class AppTranslationRequest(models.Model):
@@ -63,11 +92,23 @@ class AppTranslationRequest(models.Model):
     provider_options = JSONField(default=dict, blank=True)
     export_content = JSONField(default=dict, blank=True)
     request_content = JSONField(default=dict, blank=True)
-    selected_quote = models.ForeignKey('TranslationQuote', blank=True, null=True, on_delete=models.CASCADE)
+    selected_quote = models.ForeignKey('AppTranslationQuote', blank=True, null=True, on_delete=models.CASCADE)
 
     class Meta:
         verbose_name = _('App Translation request')
         verbose_name_plural = _('App Translation requests')
+
+    @property
+    def status(self):
+        return self.STATES.for_value(self.state).display
+
+    @property
+    def provider(self):
+        if not self._provider and self.provider_backend:
+            self._provider = TRANSLATION_PROVIDERS.get(self.provider_backend)(self)
+        return self._provider
+
+    _provider = None
 
     def set_provider_order_name(self, app_label):
         initial_page_title = app_label
@@ -97,6 +138,122 @@ class AppTranslationRequest(models.Model):
         if commit:
             self.save(update_fields=('state',))
         return not status == self.STATES.IMPORT_FAILED
+
+    def submit_request(self):
+        response = self.provider.send_request(is_app=True)
+        self.set_status(self.STATES.IN_TRANSLATION)
+        return response
+
+    def get_quote_from_provider(self):
+        self.set_status(self.STATES.PENDING_QUOTE)
+
+        provider_quote = self.provider.get_quote()
+        print("provider_quote", provider_quote)
+        currency = provider_quote['Currency']
+        date_received = timezone.now()
+        quotes = []
+
+        for option in provider_quote['Options']:
+            order_type_id = option['OrderTypeId']
+            name = '{} ({})'.format(option['Name'], option['ShortDescription'])
+            description = option['Description']
+
+            for delivery_option in option['DeliveryOptions']:
+                quote = self.quotes.create(
+                    provider_options={
+                        'OrderTypeId': order_type_id,
+                        'DeliveryId': delivery_option['DeliveryId'],
+                    },
+                    name=name,
+                    description=description,
+                    delivery_date=delivery_option['DeliveryDate'],
+                    delivery_date_name=delivery_option['Name'],
+                    price_currency=currency,
+                    price_amount=delivery_option['Price'] or 0,
+                    date_received=date_received,
+                )
+                quotes.append(quote)
+
+        self.set_status(self.STATES.PENDING_APPROVAL)
+
+    def import_response(self, raw_data):
+        import_state = AppTranslationImport.objects.create(request=self)
+        self.set_status(self.STATES.IMPORT_STARTED)
+        self.order.response_content = raw_data
+        self.order.save(update_fields=('response_content',))
+
+        try:
+            import_data = self.provider.get_import_data()
+            print("import_data", import_data)
+        except ValueError:
+            message = _('Received invalid data from {}.').format(self.provider_backend)
+            logger.exception(message)
+            import_state.set_error_message(message)
+            return self.set_status(self.STATES.IMPORT_FAILED)
+
+        id_item_mapping = self.items.in_bulk()
+        import_error = False
+        for translation_request_item_pk, placeholders in import_data.items():
+            translation_request_item = id_item_mapping[translation_request_item_pk]
+            print("translation_request_item", translation_request_item, placeholders)
+            app_label = translation_request_item.app_label
+            model_label = translation_request_item.link_model
+            link_object_id = translation_request_item.link_object_id
+            obj_model = get_model(app_label, model_label)
+            obj = obj_model.objects.get(id=link_object_id)
+
+            try:
+                import_plugins_to_app(
+                    placeholders=placeholders,
+                    obj=obj,
+                    language=self.target_language
+                )
+            except (IntegrityError, ObjectDoesNotExist):
+                # self._set_import_archive()
+                message = _('Failed to import plugins from {}.').format(self.provider_backend)
+                logger.exception(message)
+                import_state.set_error_message(message)
+                import_error = True
+
+        if import_error:
+            # FIXME: this or all-or-nothing (atomic)?
+            return self.set_status(self.STATES.IMPORT_FAILED)
+
+        self.set_status(self.STATES.IMPORTED, commit=False)
+        self.date_imported = timezone.now()
+        self.save(update_fields=('date_imported', 'state'))
+        import_state.state = import_state.STATES.IMPORTED
+        import_state.save(update_fields=('state',))
+        return True
+
+
+class AppTranslationOrder(models.Model):
+    STATES = Choices(
+        ('OPEN', 'open', _('Open')),
+        ('PENDING', 'pending_quote', _('Pending')),
+        ('FAILED', 'failed', _('Failed/cancelled')),
+        ('DONE', 'done', _('Done')),
+    )
+
+    request = models.OneToOneField(AppTranslationRequest, related_name='order', on_delete=models.CASCADE)
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_translated = models.DateTimeField(blank=True, null=True)
+
+    state = models.CharField(choices=STATES, default=STATES.OPEN, max_length=100)
+
+    request_content = JSONField(default=dict, blank=True)
+    response_content = JSONField(default=dict, blank=True)
+
+    provider_details = JSONField(default=dict, blank=True)
+
+    @property
+    def price_with_currency(self):
+        price = self.provider_details.get(self.request.provider.PRICE_KEY)
+        if not price:
+            return '-'
+        currency = self.provider_details.get(self.request.provider.CURRENCY_KEY)
+        return '{} {}'.format(price, currency)
 
 
 class AppTranslationRequestItem(models.Model):
@@ -135,3 +292,21 @@ class AppTranslationQuote(models.Model):
 
     def __str__(self):
         return '{} {} {}'.format(self.name, self.description, self.price_amount)
+
+
+class AppTranslationImport(models.Model):
+    STATES = Choices(
+        ('STARTED', 'started', _('Import started')),
+        ('FAILED', 'failed', _('Import failed')),
+        ('IMPORTED', 'imported', _('Imported')),
+    )
+
+    request = models.ForeignKey(AppTranslationRequest, on_delete=models.CASCADE, related_name='imports')
+    date_created = models.DateTimeField(auto_now_add=True)
+    message = models.CharField(max_length=1000, blank=True)
+    state = models.CharField(choices=STATES, default=STATES.STARTED, max_length=100)
+
+    def set_error_message(self, message):
+        self.state = self.STATES.FAILED
+        self.message = message
+        self.save(update_fields=('state', 'message'))
