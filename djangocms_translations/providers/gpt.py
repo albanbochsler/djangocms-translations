@@ -217,15 +217,12 @@ class GptTranslationProvider(BaseTranslationProvider):
 
     def get_quote(self):
         self.request.request_content = self.get_export_data()
-        print("self.request.request_content = ", self.request.request_content)
         self.request.save(update_fields=('request_content',))
         response = self.make_request(
             method='post',
             section='/quote',
             json=self.request.request_content,
         )
-
-        print("response = ", response, response.json())
 
         return response.json()
 
@@ -238,6 +235,8 @@ class GptTranslationProvider(BaseTranslationProvider):
             json=data,
         )
 
+        print("response post", response.json())
+
         return response
 
     def send_request(self, is_app=False):
@@ -245,7 +244,6 @@ class GptTranslationProvider(BaseTranslationProvider):
         from ..mixins.models import AppTranslationOrder
 
         request = self.request
-        print("request = ", request, is_app)
         if is_app:
             callback_url = add_domain(
                 reverse('admin:app-translation-request-provider-callback', kwargs={'pk': request.pk}))
@@ -294,11 +292,11 @@ class GptTranslationProvider(BaseTranslationProvider):
 
         # Supports only SupertextAPI v1.1
         # creating order endpoint returns list, not a json object
-        order.provider_details = "OpenAI API"
-        order.save(update_fields=('provider_details',))
 
         response = self.get_translation_from_gpt(order.request_content)
-
+        print("response = ", response, response.json())
+        order.provider_details = response.json()
+        order.save(update_fields=('provider_details',))
         return response
 
     def check_status(self):

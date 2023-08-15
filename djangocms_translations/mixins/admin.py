@@ -10,6 +10,8 @@ from djangocms_translations.admin import AllReadOnlyFieldsMixin
 from djangocms_translations.utils import pretty_json
 
 from django.forms import widgets
+from .. import conf
+
 from . import models, views
 
 __all__ = [
@@ -187,6 +189,7 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
                 views.process_provider_callback_view,
                 name='app-translation-request-provider-callback',
             ),
+
         ] + super(AppTranslationRequestAdmin, self).get_urls()
 
     def pretty_status(self, obj):
@@ -215,15 +218,28 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
                 reverse('admin:choose-app-translation-quote', args=(obj.pk,)),
                 _('Choose quote'),
             )
+
         # elif obj.state == models.AppTranslationRequest.STATES.IMPORT_FAILED:
         #     action = render_action(
         #         reverse('admin:translation-request-show-log', args=(obj.pk,)),
         #         _('Log'),
         #     )
+        def render_task_status(obj):
+            title = _('Task status')
+            location = obj.order.provider_details["Location"] if obj.order.provider_details.__contains__(
+                "Location") else ""
+            url = '{}{}'.format(obj.provider.api_url, location)
+
+            return mark_safe(
+                '<a class="button" href="{url}" target="_blank">{title}</a>'
+                .format(url=url, title=title)
+            )
+
         return format_html(
-            '{status} {action}',
+            '{status} {action} {task}',
             status=obj.get_state_display(),
             action=action,
+            task=render_task_status(obj)
         )
 
     pretty_status.short_description = _('Status')

@@ -148,7 +148,6 @@ class AppTranslationRequest(models.Model):
         self.set_status(self.STATES.PENDING_QUOTE)
 
         provider_quote = self.provider.get_quote()
-        print("provider_quote", provider_quote)
         currency = provider_quote['Currency']
         date_received = timezone.now()
         quotes = []

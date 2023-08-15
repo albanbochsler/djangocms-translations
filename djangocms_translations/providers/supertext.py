@@ -17,7 +17,6 @@ from ..utils import (
 )
 from .base import BaseTranslationProvider, ProviderException
 
-
 # Format: language_code used in settings.LANGUAGE_* --> language_code that will be sent to Supertext
 LANGUAGE_MAPPING = {
     'ch-de': 'de-CH',
