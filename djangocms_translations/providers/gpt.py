@@ -218,7 +218,6 @@ class GptTranslationProvider(BaseTranslationProvider):
     def get_quote(self):
         self.request.request_content = self.get_export_data()
         self.request.save(update_fields=('request_content',))
-
         response = self.make_request(
             method='post',
             section='/quote',
