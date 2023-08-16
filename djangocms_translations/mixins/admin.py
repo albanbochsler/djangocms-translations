@@ -130,6 +130,7 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
         (_('Additional info'), {
             'fields': (
                 'pretty_provider_options',
+                'pretty_export_fields',
                 'pretty_export_content',
                 # 'pretty_request_content',
                 # 'selected_quote',
@@ -149,6 +150,7 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
         #     'pretty_target_language',
         'pretty_provider_options',
         'pretty_export_content',
+        'pretty_export_fields',
         #     'pretty_request_content',
         #     'selected_quote',
     )
@@ -165,7 +167,15 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
             data = obj.export_content
         return pretty_json(data)
 
+    def pretty_export_fields(self, obj):
+        if isinstance(obj.export_fields, dict):
+            data = json.dumps(obj.export_fields)
+        else:
+            data = obj.export_fields
+        return pretty_json(data)
+
     pretty_export_content.short_description = _('Export content')
+    pretty_export_fields.short_description = _('Export fields')
 
     def get_urls(self):
         return [

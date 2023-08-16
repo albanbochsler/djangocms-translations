@@ -58,7 +58,8 @@ def process_provider_callback_view(request, pk):
     requests = (
         AppTranslationRequest
         .objects
-        .filter(state=AppTranslationRequest.STATES.IN_TRANSLATION)
+        .all()
+        # .filter(state=AppTranslationRequest.STATES.IN_TRANSLATION)
     )
     trans_request = get_object_or_404(requests, pk=pk)
     # convert request body to dict

@@ -10,6 +10,7 @@ from djangocms_transfer.importer import import_plugins
 from extended_choices import Choices
 from django.conf import settings
 from django.utils import timezone
+from django.apps import apps
 
 from django.db import models, IntegrityError
 from django.utils.translation import ugettext_lazy as _
@@ -17,17 +18,16 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
 from djangocms_transfer.utils import get_plugin_class, get_plugin_model
 
-from allink_core.core.utils import get_model
+# from allink_core.core.utils import get_model
 from ..providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
 
-__all__ = ['AppTranslationRequest']
+__all__ = ['AppTranslationRequest', 'AppTranslationRequestItem']
 logger = logging.getLogger('djangocms_translations')
 
 
 def get_app_export_data(obj, language):
     data = []
     placeholders = {}
-    # TODO also add fields
 
     for field in obj._meta.get_fields():
         if field.get_internal_type() == 'PlaceholderField':
@@ -36,7 +36,27 @@ def get_app_export_data(obj, language):
     for placeholder_name, placeholder in placeholders.items():
         plugins = get_placeholder_export_data(placeholder, language)
         data.append({'placeholder': placeholder_name, 'plugins': plugins})
-        # data.append({'placeholder': placeholder.slot, 'plugins': plugins})
+
+    return data
+
+
+def get_app_export_fields(obj, language):
+    data = []
+    fields = {}
+
+    for field in obj._meta.get_fields():
+        if field.auto_created or not field.editable or field.many_to_many:
+            continue
+
+        for field in obj.get_translation(language)._meta.get_fields():
+            if field.auto_created or not field.editable or field.many_to_many:
+                continue
+
+            fields[field.name] = getattr(obj.get_translation(language), field.name)
+
+    fields.pop('language_code')
+    fields.pop('master')
+    data.append({'fields': fields})
 
     return data
 
@@ -47,17 +67,30 @@ def import_plugins_to_app(placeholders, obj, language):
     for field in obj._meta.get_fields():
         if field.get_internal_type() == 'PlaceholderField':
             old_placeholders[field.name] = getattr(obj, field.name)
-    print("old_placeholders", old_placeholders, old_placeholders["header_placeholder"])
 
     for archived_placeholder in placeholders:
         plugins = archived_placeholder.plugins
-        print("plugins", plugins)
         placeholder = old_placeholders[archived_placeholder.slot]
         # placeholder = old_placeholders.get(archived_placeholder.slot)
-        print("placeholder", placeholder)
         if placeholder and plugins:
             import_plugins(plugins, placeholder, language)
-            print("import_plugins(plugins, placeholder, language)")
+
+
+def import_fields_to_model(return_fields, target_language):
+    translation_request_item_pk = return_fields[0]["translation_request_item_pk"]
+    link_object_id = return_fields[0]["link_object_id"]
+    request_item = AppTranslationRequestItem.objects.get(pk=translation_request_item_pk)
+    obj_model = apps.get_model(request_item.app_label, request_item.link_model)
+    obj = obj_model.objects.get(id=link_object_id)
+    
+    if not obj.has_translation(target_language):
+        obj.create_translation(target_language)
+
+    for item in return_fields:
+        field_name = item["field_name"]
+        content = item["content"]
+        setattr(obj.get_translation(target_language), field_name, content)
+        obj.get_translation(target_language).save()
 
 
 class AppTranslationRequest(models.Model):
@@ -91,7 +124,9 @@ class AppTranslationRequest(models.Model):
     provider_order_name = models.CharField(max_length=255, blank=True)
     provider_options = JSONField(default=dict, blank=True)
     export_content = JSONField(default=dict, blank=True)
+    export_fields = JSONField(default=dict, blank=True)
     request_content = JSONField(default=dict, blank=True)
+    request_fields = JSONField(default=dict, blank=True)
     selected_quote = models.ForeignKey('AppTranslationQuote', blank=True, null=True, on_delete=models.CASCADE)
 
     class Meta:
@@ -123,12 +158,15 @@ class AppTranslationRequest(models.Model):
 
     def set_content_from_app(self):
         export_content = []
+        export_fields = []
 
         for item in self.items.all():
             export_content.extend(item.get_export_data(self.source_language))
+            export_fields.extend(item.get_export_fields(self.source_language))
 
         self.export_content = json.dumps(export_content, cls=DjangoJSONEncoder)
-        self.save(update_fields=('export_content',))
+        self.export_fields = json.dumps(export_fields, cls=DjangoJSONEncoder)
+        self.save(update_fields=('export_content', 'export_fields'))
         self.set_status(self.STATES.OPEN)
 
     def set_status(self, status, commit=True):
@@ -154,7 +192,6 @@ class AppTranslationRequest(models.Model):
         quotes = []
 
         for option in provider_quote['Options']:
-            print("option", option)
             order_type_id = option['OrderTypeId']
             name = '{} ({})'.format(option['Name'], option['ShortDescription'])
             description = option['Description']
@@ -174,7 +211,6 @@ class AppTranslationRequest(models.Model):
                     date_received=date_received,
                 )
                 quotes.append(quote)
-        print("quotes", quotes)
         self.set_status(self.STATES.PENDING_APPROVAL)
 
     def import_response(self, raw_data):
@@ -184,8 +220,7 @@ class AppTranslationRequest(models.Model):
         self.order.save(update_fields=('response_content',))
 
         try:
-            import_data = self.provider.get_import_data()
-            print("import_data", import_data)
+            import_data, return_fields = self.provider.get_import_data()
         except ValueError:
             message = _('Received invalid data from {}.').format(self.provider_backend)
             logger.exception(message)
@@ -194,13 +229,17 @@ class AppTranslationRequest(models.Model):
 
         id_item_mapping = self.items.in_bulk()
         import_error = False
+        print("return_fields", return_fields)
+
+        if return_fields:
+            import_fields_to_model(return_fields, self.target_language)
+
         for translation_request_item_pk, placeholders in import_data.items():
             translation_request_item = id_item_mapping[translation_request_item_pk]
-            print("translation_request_item", translation_request_item, placeholders)
             app_label = translation_request_item.app_label
             model_label = translation_request_item.link_model
             link_object_id = translation_request_item.link_object_id
-            obj_model = get_model(app_label, model_label)
+            obj_model = apps.get_model(app_label, model_label)
             obj = obj_model.objects.get(id=link_object_id)
 
             try:
@@ -267,14 +306,28 @@ class AppTranslationRequestItem(models.Model):
         app_label = self.app_label
         model_label = self.link_model
         link_object_id = self.link_object_id
-        obj_model = get_model(app_label, model_label)
+        obj_model = apps.get_model(app_label, model_label)
         obj = obj_model.objects.get(id=link_object_id)
-        print("request item", obj)
 
         data = get_app_export_data(obj, language)
-        print("data", data)
         for d in data:
             d['translation_request_item_pk'] = self.pk
+
+        return data
+
+    def get_export_fields(self, language):
+        app_label = self.app_label
+        model_label = self.link_model
+        link_object_id = self.link_object_id
+        obj_model = apps.get_model(app_label, model_label)
+        obj = obj_model.objects.get(id=link_object_id)
+
+        data = get_app_export_fields(obj, language)
+
+        for d in data:
+            d['translation_request_item_pk'] = self.pk
+            d['app_label'] = self.app_label
+            d['pk'] = self.link_object_id
         return data
 
 

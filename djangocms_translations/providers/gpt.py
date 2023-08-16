@@ -5,13 +5,13 @@ from django.conf import settings
 from django.contrib.sites.models import Site
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-
 import requests
 from djangocms_text_ckeditor.html import clean_html
 from djangocms_text_ckeditor.utils import plugin_to_tag, _plugin_tags_to_html, plugin_tags_to_id_list
 from djangocms_transfer.forms import _object_version_data_hook
 from djangocms_transfer.utils import get_plugin_class
 from djangocms_translations.conf import TRANSLATIONS_USE_STAGING
+# from ..mixins.utils import import_fields_to_model
 from djangocms_translations.utils import USE_HTTPS
 from extended_choices import Choices
 from yurl import URL
@@ -140,6 +140,11 @@ class GptTranslationProvider(BaseTranslationProvider):
         groups = []
         fields_by_plugin = {}
 
+        # if self.request.export_fields:
+        #     for field in json.loads(self.request.export_fields):
+        #         print("field", field)
+        # check if field has content
+
         for placeholder in json.loads(self.request.export_content):
             subplugins_already_processed = set()
 
@@ -170,6 +175,25 @@ class GptTranslationProvider(BaseTranslationProvider):
                     })
 
         x_data['Groups'] = groups
+        if self.request.export_fields:
+            _fields = []
+            for fields in json.loads(self.request.export_fields):
+                for key, value in fields['fields'].items():
+                    items = []
+                    if value:
+                        items.append({
+                            'Id': "field",
+                            'Content': value,
+                        })
+                    if items:
+                        _fields.append({
+                            'GroupId': '{}:{}:{}'.format(
+                                fields['translation_request_item_pk'],
+                                key, fields['pk']
+                            ),
+                            'Items': items
+                        })
+            x_data['Groups'] += _fields
         return x_data
 
     def get_import_data(self):
@@ -178,13 +202,16 @@ class GptTranslationProvider(BaseTranslationProvider):
         import_content = request.order.response_content
         # import_content = json.loads(request.order.response_content)
         subplugins_already_processed = set()
-
+        # _fields = {"fields": {}, "translation_request_item_pk": None, "field_name": None, "link_object_id": None,
+        #            "pk": None}
+        _fields = []
         # TLRD: data is like {translation_request_item_pk: {placeholder_name: {plugin_pk: plugin_dict}}}
         data = defaultdict(dict)
         for x in export_content:
             translation_request_item_pk = x['translation_request_item_pk']
             plugin_dict = OrderedDict((plugin['pk'], plugin) for plugin in x['plugins'])
             data[translation_request_item_pk][x['placeholder']] = plugin_dict
+
         for group in import_content['Groups']:
             translation_request_item_pk, placeholder, plugin_id = group['GroupId'].split(':')
             translation_request_item_pk = int(translation_request_item_pk)
@@ -193,18 +220,27 @@ class GptTranslationProvider(BaseTranslationProvider):
             #     continue
 
             for item in group['Items']:
-                plugin_dict = data[translation_request_item_pk][placeholder]
-                plugin = plugin_dict[plugin_id]
-                plugin['data'][item['Id']] = item['Content']
-                subplugins = _set_translation_import_content(item['Content'], plugin)
-                subplugins_already_processed.update(list(subplugins.keys()))
-                for subplugin_id, subplugin_content in subplugins.items():
-                    field = get_text_field_child_label(plugin_dict[subplugin_id]['plugin_type'])
-                    if field:
-                        plugin_dict[subplugin_id]['data'][field] = subplugin_content
+                if not item['Id'] == 'field':
+                    plugin_dict = data[translation_request_item_pk][placeholder]
+                    plugin = plugin_dict[plugin_id]
+                    plugin['data'][item['Id']] = item['Content']
+                    subplugins = _set_translation_import_content(item['Content'], plugin)
+                    subplugins_already_processed.update(list(subplugins.keys()))
+                    for subplugin_id, subplugin_content in subplugins.items():
+                        field = get_text_field_child_label(plugin_dict[subplugin_id]['plugin_type'])
+                        if field:
+                            plugin_dict[subplugin_id]['data'][field] = subplugin_content
+                else:
+                    _fields.append({
+                        "translation_request_item_pk": translation_request_item_pk,
+                        "link_object_id": plugin_id,
+                        "field_name": placeholder,
+                        "content": item['Content']
+                    })
 
         # TLRD: return_data is like {translation_request_item_pk: [<djangocms_transfer.ArchivedPlaceholder>, ]}
         return_data = {}
+        return_fields = _fields
         for translation_request_item_pk, placeholders_dict in data.items():
             data = json.dumps([{
                 'placeholder': p,
@@ -213,7 +249,7 @@ class GptTranslationProvider(BaseTranslationProvider):
             archived_placeholders = json.loads(data, object_hook=_object_version_data_hook)
             return_data[translation_request_item_pk] = archived_placeholders
 
-        return return_data
+        return return_data, return_fields
 
     def get_quote(self):
         self.request.request_content = self.get_export_data()
