@@ -172,7 +172,7 @@ class TranslationRequest(models.Model):
         self.order.save(update_fields=('response_content',))
 
         try:
-            import_data = self.provider.get_import_data()
+            import_data, return_fields = self.provider.get_import_data()
         except ValueError:
             message = _('Received invalid data from {}.').format(self.provider_backend)
             logger.exception(message)
@@ -240,7 +240,7 @@ class TranslationRequest(models.Model):
 
     @transaction.atomic
     def _set_import_archive(self):
-        import_data = self.provider.get_import_data()
+        import_data, return_fields = self.provider.get_import_data()
         id_item_mapping = self.items.in_bulk()
 
         for translation_request_item_pk, placeholders in import_data:

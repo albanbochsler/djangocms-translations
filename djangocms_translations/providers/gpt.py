@@ -175,25 +175,28 @@ class GptTranslationProvider(BaseTranslationProvider):
                     })
 
         x_data['Groups'] = groups
-        if self.request.export_fields:
-            _fields = []
-            for fields in json.loads(self.request.export_fields):
-                for key, value in fields['fields'].items():
-                    items = []
-                    if value:
-                        items.append({
-                            'Id': "field",
-                            'Content': value,
-                        })
-                    if items:
-                        _fields.append({
-                            'GroupId': '{}:{}:{}'.format(
-                                fields['translation_request_item_pk'],
-                                key, fields['pk']
-                            ),
-                            'Items': items
-                        })
-            x_data['Groups'] += _fields
+        try:
+            if self.request.export_fields:
+                _fields = []
+                for fields in json.loads(self.request.export_fields):
+                    for key, value in fields['fields'].items():
+                        items = []
+                        if value:
+                            items.append({
+                                'Id': "field",
+                                'Content': value,
+                            })
+                        if items:
+                            _fields.append({
+                                'GroupId': '{}:{}:{}'.format(
+                                    fields['translation_request_item_pk'],
+                                    key, fields['pk']
+                                ),
+                                'Items': items
+                            })
+                x_data['Groups'] += _fields
+        except AttributeError:
+            pass
         return x_data
 
     def get_import_data(self):
