@@ -20,16 +20,17 @@ class TranslationsToolbar(CMSToolbar):
         page = self.request.current_page
         if not page:
             return
-
         menu = self.toolbar.get_or_create_menu('djangocms_translations', _('Translations'))
         overview_url = reverse('admin:djangocms_translations_translationrequest_changelist')
-        menu.add_sideframe_item(_('Overview'), url=overview_url)
+        overview_url_app = reverse('admin:djangocms_translations_apptranslationrequest_changelist')
+        # menu.add_sideframe_item(_('Overview pages'), url=overview_url)
+        # menu.add_sideframe_item(_('Overview apps'), url=overview_url_app)
 
-        languages_within_this_site = settings.CMS_LANGUAGES[settings.SITE_ID]
-        if len(languages_within_this_site) >= 2:
-            # Bulk translations work only within a site.
-            bulk_translate_url = reverse('admin:translate-in-bulk-step-1')
-            menu.add_modal_item(_('Translate in bulk'), url=bulk_translate_url)
+        # languages_within_this_site = settings.CMS_LANGUAGES[settings.SITE_ID]
+        # if len(languages_within_this_site) >= 2:
+        #     # Bulk translations work only within a site.
+        #     bulk_translate_url = reverse('admin:translate-in-bulk-step-1')
+        #     menu.add_modal_item(_('Translate in bulk'), url=bulk_translate_url)
 
         current_language = get_language_from_request(self.request)
         base_url = (
@@ -42,6 +43,14 @@ class TranslationsToolbar(CMSToolbar):
             _('Translate this page'),
             position=1,
         )
+        overview_menu = menu.get_or_create_menu(
+            'djangocms_translations-overview',
+            _('Overview'),
+            position=1,
+        )
+
+        overview_menu.add_modal_item("Pages", url=overview_url)
+        overview_menu.add_modal_item("Apps", url=overview_url_app)
 
         for language_data in all_languages:
             code = language_data[0]
