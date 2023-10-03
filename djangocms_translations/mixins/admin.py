@@ -1,5 +1,6 @@
 import json
 
+from django import forms
 from django.conf.urls import url
 from django.urls import reverse
 from django.utils.html import format_html
@@ -90,10 +91,20 @@ class AppTranslationOrderInline(AllReadOnlyFieldsMixin, admin.StackedInline):
     price.short_description = _('Price')
 
 
+# class TranslationDirectiveAdminInlineForm(forms.ModelForm):
+#     class Meta:
+#         model = TranslationDirectiveInline
+#         fields = '__all__'
+#         widgets = {
+#             'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
+#         }
+
+
 class TranslationDirectiveAdminInline(admin.TabularInline):
     model = TranslationDirectiveInline
     extra = 0
     classes = ['collapse']
+    # form = TranslationDirectiveAdminInlineForm
     # disable adding new directives
     can_delete = False
     max_num = len(settings.LANGUAGES)

@@ -5,6 +5,7 @@ from cms.utils.copy_plugins import copy_plugins_to
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
+from djangocms_text_ckeditor.fields import HTMLField
 from djangocms_transfer.exporter import get_placeholder_export_data
 from djangocms_transfer.importer import import_plugins
 from extended_choices import Choices
@@ -141,7 +142,7 @@ class TranslationDirectiveInline(models.Model):
         choices=settings.LANGUAGES,
         default=settings.LANGUAGES[0][0],
     )
-    directive_item = models.TextField("directive item", blank=True, null=True)
+    directive_item = HTMLField("directive item", blank=True, null=True)
 
     def __str__(self):
         return self.title if self.title else self.master.title

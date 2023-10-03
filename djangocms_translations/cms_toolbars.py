@@ -22,9 +22,10 @@ class TranslationsToolbar(CMSToolbar):
             return
         menu = self.toolbar.get_or_create_menu('djangocms_translations', _('Translations'))
         overview_url = reverse('admin:djangocms_translations_translationrequest_changelist')
+        directive_url = reverse('admin:djangocms_translations_translationdirective_changelist')
         overview_url_app = reverse('admin:djangocms_translations_apptranslationrequest_changelist')
         # menu.add_sideframe_item(_('Overview pages'), url=overview_url)
-        # menu.add_sideframe_item(_('Overview apps'), url=overview_url_app)
+        menu.add_sideframe_item(_('AI directives'), url=directive_url)
 
         # languages_within_this_site = settings.CMS_LANGUAGES[settings.SITE_ID]
         # if len(languages_within_this_site) >= 2:
@@ -43,6 +44,7 @@ class TranslationsToolbar(CMSToolbar):
             _('Translate this page'),
             position=1,
         )
+
         overview_menu = menu.get_or_create_menu(
             'djangocms_translations-overview',
             _('Overview'),
