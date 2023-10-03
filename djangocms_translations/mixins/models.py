@@ -22,7 +22,7 @@ from djangocms_transfer.utils import get_plugin_class, get_plugin_model
 # from allink_core.core.utils import get_model
 from ..providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
 
-__all__ = ['AppTranslationRequest', 'AppTranslationRequestItem']
+__all__ = ['AppTranslationRequest', 'AppTranslationRequestItem', 'TranslationDirective']
 logger = logging.getLogger('djangocms_translations')
 
 

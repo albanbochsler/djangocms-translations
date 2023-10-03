@@ -4,6 +4,7 @@ from collections import OrderedDict, defaultdict
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.urls import reverse
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 import requests
 from djangocms_text_ckeditor.html import clean_html
@@ -131,11 +132,23 @@ class GptTranslationProvider(BaseTranslationProvider):
         return response
 
     def get_export_data(self):
+        from ..mixins.models import TranslationDirective
+
+        directives_dict = {}
+        for directive in TranslationDirective.objects.all():
+            directives_dict.setdefault(directive.pk, {})
+            directives_dict[directive.pk]['masterLanguage'] = LANGUAGE_MAPPING.get(directive.master_language)
+            for translation in directive.translations.all():
+                directives_dict[directive.pk][LANGUAGE_MAPPING.get(translation.language)] = {
+                    'directive_item': translation.directive_item,
+                }
+
         x_data = {
             'ContentType': 'text/html',
             'SourceLang': LANGUAGE_MAPPING.get(self.request.source_language, self.request.source_language),
             'TargetLanguages': [LANGUAGE_MAPPING.get(self.request.target_language, self.request.target_language)],
             "Currency": "CHF",
+            "Directives": directives_dict,
         }
         groups = []
         fields_by_plugin = {}

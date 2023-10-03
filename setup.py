@@ -7,6 +7,7 @@ from djangocms_translations import __version__
 REQUIREMENTS = [
     'django-cms>=3.5',
     'django-appconf>=1.0,<2',
+    'djangocms-text-ckeditor>=5.1.2'
     'django-extended-choices',
     'djangocms-transfer',
     'pygments',
