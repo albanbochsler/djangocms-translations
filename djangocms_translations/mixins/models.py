@@ -82,7 +82,7 @@ def import_fields_to_model(return_fields, target_language):
     request_item = AppTranslationRequestItem.objects.get(pk=translation_request_item_pk)
     obj_model = apps.get_model(request_item.app_label, request_item.link_model)
     obj = obj_model.objects.get(id=link_object_id)
-    
+
     if not obj.has_translation(target_language):
         obj.create_translation(target_language)
 
@@ -91,6 +91,63 @@ def import_fields_to_model(return_fields, target_language):
         content = item["content"]
         setattr(obj.get_translation(target_language), field_name, content)
         obj.get_translation(target_language).save()
+
+
+class TranslationDirective(models.Model):
+    title = models.CharField(max_length=255)
+    master_language = models.CharField(
+        _("master language"),
+        max_length=10,
+        choices=settings.LANGUAGES,
+        default=settings.LANGUAGES[0][0],
+    )
+
+    class Meta:
+        verbose_name = "translation directive"
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        # add TranslationDirectiveInline for each language, starting with master language
+        super().save(*args, **kwargs)
+        for language, _ in settings.LANGUAGES:
+            if language == self.master_language:
+                TranslationDirectiveInline.objects.get_or_create(
+                    title="{} - {}".format(self.title, language),
+                    master=self,
+                    language=language
+                )
+            else:
+                TranslationDirectiveInline.objects.get_or_create(
+                    title="{} - {}".format(self.title, language),
+                    master=self,
+                    language=language
+                )
+
+
+class TranslationDirectiveInline(models.Model):
+    title = models.CharField(max_length=255, editable=False, null=True)
+    master = models.ForeignKey(
+        TranslationDirective,
+        on_delete=models.CASCADE,
+        related_name='translations',
+        null=True
+    )
+    language = models.CharField(
+        _("language"),
+        max_length=10,
+        editable=False,
+        choices=settings.LANGUAGES,
+        default=settings.LANGUAGES[0][0],
+    )
+    directive_item = models.TextField("directive item", blank=True, null=True)
+
+    def __str__(self):
+        return self.title if self.title else self.master.title
+
+    class Meta:
+        ordering = ['master__master_language']
 
 
 class AppTranslationRequest(models.Model):

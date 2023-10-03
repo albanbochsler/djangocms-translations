@@ -10,7 +10,7 @@ from djangocms_translations.admin import AllReadOnlyFieldsMixin
 from djangocms_translations.utils import pretty_json
 
 from django.forms import widgets
-from .. import conf
+from django.conf import settings
 
 from . import models, views
 
@@ -19,7 +19,7 @@ __all__ = [
     'AppTranslationRequestAdmin',
 ]
 
-from .models import AppTranslationRequest, AppTranslationRequestItem
+from .models import AppTranslationRequest, AppTranslationRequestItem, TranslationDirective, TranslationDirectiveInline
 
 
 class AppTranslationRequestItemInline(AllReadOnlyFieldsMixin, admin.TabularInline):
@@ -88,6 +88,23 @@ class AppTranslationOrderInline(AllReadOnlyFieldsMixin, admin.StackedInline):
         return obj.price_with_currency
 
     price.short_description = _('Price')
+
+
+class TranslationDirectiveAdminInline(admin.TabularInline):
+    model = TranslationDirectiveInline
+    extra = 0
+    classes = ['collapse']
+    # disable adding new directives
+    can_delete = False
+    max_num = len(settings.LANGUAGES)
+
+
+@admin.register(TranslationDirective)
+class TranslationDirectiveAdmin(admin.ModelAdmin):
+    list_display = ("title", "master_language")
+    inlines = [
+        TranslationDirectiveAdminInline,
+    ]
 
 
 @admin.register(AppTranslationRequest)
