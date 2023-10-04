@@ -16,8 +16,6 @@ from django.apps import apps
 from django.db import models, IntegrityError
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import JSONField
-from djangocms_transfer.utils import get_plugin_class, get_plugin_model
 
 # from allink_core.core.utils import get_model
 from ..providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
@@ -180,11 +178,11 @@ class AppTranslationRequest(models.Model):
     target_language = models.CharField(max_length=10, choices=settings.LANGUAGES)
     provider_backend = models.CharField(max_length=100, choices=PROVIDERS)
     provider_order_name = models.CharField(max_length=255, blank=True)
-    provider_options = JSONField(default=dict, blank=True)
-    export_content = JSONField(default=dict, blank=True)
-    export_fields = JSONField(default=dict, blank=True)
-    request_content = JSONField(default=dict, blank=True)
-    request_fields = JSONField(default=dict, blank=True)
+    provider_options = models.JSONField(default=dict, blank=True)
+    export_content = models.JSONField(default=dict, blank=True)
+    export_fields = models.JSONField(default=dict, blank=True)
+    request_content = models.JSONField(default=dict, blank=True)
+    request_fields = models.JSONField(default=dict, blank=True)
     selected_quote = models.ForeignKey('AppTranslationQuote', blank=True, null=True, on_delete=models.CASCADE)
 
     class Meta:
@@ -340,10 +338,10 @@ class AppTranslationOrder(models.Model):
 
     state = models.CharField(choices=STATES, default=STATES.OPEN, max_length=100)
 
-    request_content = JSONField(default=dict, blank=True)
-    response_content = JSONField(default=dict, blank=True)
+    request_content = models.JSONField(default=dict, blank=True)
+    response_content = models.JSONField(default=dict, blank=True)
 
-    provider_details = JSONField(default=dict, blank=True)
+    provider_details = models.JSONField(default=dict, blank=True)
 
     @property
     def price_with_currency(self):
@@ -400,7 +398,7 @@ class AppTranslationQuote(models.Model):
 
     price_currency = models.CharField(max_length=10)
     price_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    provider_options = JSONField(default=dict, blank=True)
+    provider_options = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return '{} {} {}'.format(self.name, self.description, self.price_amount)

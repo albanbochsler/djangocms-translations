@@ -19,13 +19,11 @@ class CreateTranslationRequestView(CreateView):
     form_class = forms.CreateTranslationForm
 
     def get_success_url(self):
-        print("self.object.pk: ", self.object.pk)
         # return reverse('admin:djangocms_translations_apptranslationrequest_changelist')
         return reverse('admin:choose-app-translation-quote', kwargs={'pk': self.object.pk})
 
     def get_form_kwargs(self):
         form_kwargs = super(CreateTranslationRequestView, self).get_form_kwargs()
-        print("request.user: ", self.request)
         form_kwargs['user'] = self.request.user
         form_kwargs['initial'] = self.request.GET.dict()
         return form_kwargs
@@ -70,7 +68,6 @@ def process_provider_callback_view(request, pk):
 
 @require_POST
 def get_quote_from_provider_view(request, pk):
-    print("get_quote_from_provider_view", pk)
     if not request.user.is_staff:
         raise PermissionDenied
 
@@ -81,5 +78,4 @@ def get_quote_from_provider_view(request, pk):
 
     translation_request.get_quote_from_provider()
 
-    print("translation_request.get_quote_from_provider()", translation_request.get_quote_from_provider())
     return JsonResponse({'success': True})
