@@ -193,6 +193,7 @@ class GptTranslationProvider(BaseTranslationProvider):
                 _fields = []
                 for fields in json.loads(self.request.export_fields):
                     for key, value in fields['fields'].items():
+
                         items = []
                         if value:
                             items.append({
@@ -210,7 +211,37 @@ class GptTranslationProvider(BaseTranslationProvider):
                 x_data['Groups'] += _fields
         except AttributeError:
             pass
+        try:
+            if self.request.export_fields:
+                _fields = []
+                for fields in json.loads(self.request.export_fields):
+                    for k, v in fields['inlines'].items():
+                        for value in v:
+                            value_without_id = dict(
+                                value)  # Make a copy of value to avoid modifying the original dictionary
+                            id_value = value_without_id.pop(
+                                'id')  # Remove 'id' from the copied dictionary and store its value
+                            items = []
+                            for key, item in value_without_id.items():  # Use the copied dictionary without 'id'
+                                if item:
+                                    items.append({
+                                        'Id': "field",
+                                        'Content': item,
+                                    })
+                                if items:
+                                    _fields += [{
+                                        'GroupId': '{}:{}:{}'.format(
+                                            fields['translation_request_item_pk'],
+                                            key, k  # Use stored 'id' value here
+                                        ),
+                                        'Items': items
+                                    }]
+                                    items = []
+                x_data['Groups'] += _fields
+        except AttributeError:
+            pass
         return x_data
+
 
     def get_import_data(self):
         request = self.request

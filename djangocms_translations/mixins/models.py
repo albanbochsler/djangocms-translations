@@ -17,6 +17,7 @@ from django.db import models, IntegrityError
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 
+from ..conf import TRANSLATIONS_INLINE_CONF
 # from allink_core.core.utils import get_model
 from ..providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
 
@@ -39,9 +40,11 @@ def get_app_export_data(obj, language):
     return data
 
 
-def get_app_export_fields(obj, language):
+def get_app_export_fields(obj, app_label, language):
     data = []
     fields = {}
+
+    inlines = get_app_inline_fields(obj, app_label, language)
 
     for field in obj._meta.get_fields():
         if field.auto_created or not field.editable or field.many_to_many:
@@ -55,10 +58,26 @@ def get_app_export_fields(obj, language):
 
     fields.pop('language_code')
     fields.pop('master')
-    data.append({'fields': fields})
+    data.append({'fields': fields, 'inlines': inlines})
 
     return data
 
+def get_app_inline_fields(obj, app_label, language):
+    inline_fields = {}
+    for key, value in TRANSLATIONS_INLINE_CONF.items():
+        try:
+            for field in getattr(obj, value["related_name"]).all():
+                inline_fields.setdefault(field.pk, {})
+
+                inline_fields[field.pk] = [{
+                    object.name: getattr(field.get_translation(language), object.name)
+                    for object in field.get_translation(language)._meta.get_fields() if
+                    object.name != 'language_code' and object.name != 'master'
+                }]
+        except Exception as e:
+            pass
+
+    return inline_fields
 
 def import_plugins_to_app(placeholders, obj, language):
     old_placeholders = {}
@@ -84,13 +103,30 @@ def import_fields_to_model(return_fields, target_language):
 
     if not obj.has_translation(target_language):
         obj.create_translation(target_language)
-
+    conf = TRANSLATIONS_INLINE_CONF.items()
     for item in return_fields:
         field_name = item["field_name"]
         content = item["content"]
-        setattr(obj.get_translation(target_language), field_name, content)
-        obj.get_translation(target_language).save()
 
+        if conf:
+            for key, value in TRANSLATIONS_INLINE_CONF.items():
+                try:
+                    if not field_name in value["fields"]:
+                        setattr(obj.get_translation(target_language), field_name, content)
+                        obj.get_translation(target_language).save()
+                    else:
+                        # save to inline model
+                        inline_model = apps.get_model(request_item.app_label, key)
+                        inline_obj = inline_model.objects.get(pk=item["link_object_id"])
+                        if not inline_obj.has_translation(target_language):
+                            inline_obj.create_translation(target_language)
+                        setattr(inline_obj.get_translation(target_language), item["field_name"], content)
+                        inline_obj.get_translation(target_language).save()
+                except Exception as e:
+                    pass
+        else:
+            setattr(obj.get_translation(target_language), field_name, content)
+            obj.get_translation(target_language).save()
 
 class TranslationDirective(models.Model):
     title = models.CharField(max_length=255)
@@ -378,7 +414,7 @@ class AppTranslationRequestItem(models.Model):
         obj_model = apps.get_model(app_label, model_label)
         obj = obj_model.objects.get(id=link_object_id)
 
-        data = get_app_export_fields(obj, language)
+        data = get_app_export_fields(obj, app_label, language)
 
         for d in data:
             d['translation_request_item_pk'] = self.pk
