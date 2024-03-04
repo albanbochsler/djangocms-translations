@@ -5,7 +5,7 @@ from itertools import chain
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import BooleanField
+from django.db.models import BooleanField, IntegerField
 from django.forms import modelform_factory
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language_info
@@ -114,7 +114,8 @@ def get_translatable_fields(plugin_type):
                 not field.is_relation and
                 not field.primary_key and
                 not field.choices and
-                not isinstance(field, BooleanField)
+                not isinstance(field, BooleanField) and
+                not isinstance(field, IntegerField)
             )
         ]
 
