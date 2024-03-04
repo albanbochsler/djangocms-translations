@@ -62,6 +62,7 @@ def get_app_export_fields(obj, app_label, language):
 
     return data
 
+
 def get_app_inline_fields(obj, app_label, language):
     inline_fields = {}
     for key, value in TRANSLATIONS_INLINE_CONF.items():
@@ -78,6 +79,7 @@ def get_app_inline_fields(obj, app_label, language):
             pass
 
     return inline_fields
+
 
 def import_plugins_to_app(placeholders, obj, language):
     old_placeholders = {}
@@ -127,6 +129,7 @@ def import_fields_to_model(return_fields, target_language):
         else:
             setattr(obj.get_translation(target_language), field_name, content)
             obj.get_translation(target_language).save()
+
 
 class TranslationDirective(models.Model):
     title = models.CharField(max_length=255)
@@ -228,6 +231,13 @@ class AppTranslationRequest(models.Model):
     @property
     def status(self):
         return self.STATES.for_value(self.state).display
+
+    def get_app_from_export_content(self):
+        try:
+            content = json.loads(self.export_fields)
+            return content[0]['app_label']
+        except Exception as e:
+            return None
 
     @property
     def provider(self):

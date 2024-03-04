@@ -41,7 +41,11 @@ class ChooseTranslationQuoteView(UpdateView):
     model = models.AppTranslationRequest
 
     def get_success_url(self):
-        return reverse('admin:djangocms_translations_apptranslationrequest_changelist')
+        try:
+            return reverse('admin:{}_{}_{}'.format(self.object.get_app_from_export_content(),
+                                                   self.object.get_app_from_export_content(), 'changelist'))
+        except Exception as e:
+            return reverse('admin:djangocms_translations_apptranslationrequest_changelist')
 
     def form_valid(self, form):
         response = super(ChooseTranslationQuoteView, self).form_valid(form)
