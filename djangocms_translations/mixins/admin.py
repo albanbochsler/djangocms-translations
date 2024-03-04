@@ -297,7 +297,7 @@ class TranslateAppMixin(object):
 
     def get_translation_request_items(self, obj):
         items = AppTranslationRequestItem.objects.all()
-        request_items = items.filter(link_object_id=obj.pk)
+        request_items = items.filter(link_object_id=obj.pk, app_label=obj._meta.app_label)
         if request_items:
             translation_request = request_items.order_by("-id").first().translation_request
             return translation_request
@@ -329,7 +329,8 @@ class TranslateAppMixin(object):
 
     def translation_request_status(self, obj):
         action = ''
-        print(self.get_translation_request_items(obj), models.AppTranslationRequest.STATES.PENDING_APPROVAL)
+
+        # print(self.get_translation_request_items(obj), models.AppTranslationRequest.STATES.PENDING_APPROVAL)
 
         def render_action(url, title):
             return mark_safe(
