@@ -50,11 +50,10 @@ def get_app_export_fields(obj, app_label, language):
         if field.auto_created or not field.editable or field.many_to_many:
             continue
 
-        for field in obj.get_translation(language)._meta.get_fields():
-            if field.auto_created or not field.editable or field.many_to_many:
-                continue
-
-            fields[field.name] = getattr(obj.get_translation(language), field.name)
+    for field in obj.get_translation(language)._meta.get_fields():
+        if field.auto_created or not field.editable or field.many_to_many:
+            continue
+        fields[field.name] = getattr(obj.get_translation(language), field.name)
 
     fields.pop('language_code')
     fields.pop('master')
