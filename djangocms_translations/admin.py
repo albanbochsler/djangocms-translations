@@ -80,18 +80,22 @@ class TranslationRequestItemInline(AllReadOnlyFieldsMixin, admin.TabularInline):
 
     def source_cms_page_slug(self, obj):
         return obj.source_cms_page.get_slug(language=obj.translation_request.source_language)
+
     source_cms_page_slug.short_description = _('Source CMS page slug')
 
     def target_cms_page_slug(self, obj):
         return obj.target_language.get_slug(language=obj.translation_request.target_language)
+
     target_cms_page_slug.short_description = _('Target CMS page slug')
 
     def pretty_source_cms_page(self, obj):
         return self._pretty_page_display(obj.source_cms_page, obj.translation_request.source_language)
+
     pretty_source_cms_page.short_description = _('Source CMS page')
 
     def pretty_target_cms_page(self, obj):
         return self._pretty_page_display(obj.target_cms_page, obj.translation_request.target_language)
+
     pretty_target_cms_page.short_description = _('Target CMS page')
 
 
@@ -129,14 +133,17 @@ class TranslationOrderInline(AllReadOnlyFieldsMixin, admin.StackedInline):
 
     def provider_order_id(self, obj):
         return obj.provider_details.get('Id') or obj.response_content.get('Id')
+
     provider_order_id.short_description = _('Provider order ID')
 
     def pretty_provider_options(self, obj):
         return pretty_json(json.dumps(obj.provider_options))
+
     pretty_provider_options.short_description = _('Provider options')
 
     def pretty_request_content(self, obj):
         return pretty_json(json.dumps(obj.request_content))
+
     pretty_request_content.short_description = _('Request content')
 
     def pretty_response_content(self, obj):
@@ -145,10 +152,12 @@ class TranslationOrderInline(AllReadOnlyFieldsMixin, admin.StackedInline):
         else:
             data = obj.response_content
         return pretty_json(data)
+
     pretty_response_content.short_description = _('Response content')
 
     def price(self, obj):
         return obj.price_with_currency
+
     price.short_description = _('Price')
 
 
@@ -221,14 +230,17 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
 
     def pretty_source_language(self, obj):
         return get_language_name(obj.source_language)
+
     pretty_source_language.short_description = _('Source language')
 
     def pretty_target_language(self, obj):
         return get_language_name(obj.target_language)
+
     pretty_target_language.short_description = _('Target language')
 
     def pretty_provider_options(self, obj):
         return pretty_json(json.dumps(obj.provider_options))
+
     pretty_provider_options.short_description = _('Provider options')
 
     def pretty_export_content(self, obj):
@@ -237,10 +249,12 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
         else:
             data = obj.export_content
         return pretty_json(data)
+
     pretty_export_content.short_description = _('Export content')
 
     def pretty_request_content(self, obj):
         return pretty_json(json.dumps(obj.request_content))
+
     pretty_request_content.short_description = _('Request content')
 
     def pages_sent(self, obj):
@@ -252,6 +266,7 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
             ),
             title=obj._pages_sent,
         )
+
     pages_sent.short_description = _('Pages sent')
 
     def pretty_status(self, obj):
@@ -262,6 +277,7 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
                 '<a class="button" href="{url}">{title}</a>'
                 .format(url=url, title=title)
             )
+
         if obj.state == models.TranslationRequest.STATES.PENDING_QUOTE:
             action = mark_safe(
                 '<a class="button" '
@@ -289,6 +305,7 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
             status=obj.get_state_display(),
             action=action,
         )
+
     pretty_status.short_description = _('Status')
 
     def _get_template_context(self, title, form=None, **kwargs):
@@ -332,7 +349,7 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
     @method_decorator(staff_member_required)
     def translate_in_bulk_step_2(self, request):
         session = request.session
-        if session.get('bulk_translation_step') not in range(1, 4) or not(session.get('translation_request_pk')):
+        if session.get('bulk_translation_step') not in range(1, 4) or not (session.get('translation_request_pk')):
             raise Http404()
         session['bulk_translation_step'] = 2
 
@@ -344,7 +361,10 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
                 return redirect('admin:translate-in-bulk-step-3')
             session.pop('translation_request_pk')
             session.pop('bulk_translation_step')
-            prepare_translation_bulk_request.delay(translation_request.pk)
+            translation_request = TranslationRequest.objects.get(id=translation_request.pk)
+            translation_request.set_content_from_cms()
+            translation_request.get_quote_from_provider()
+            # prepare_translation_bulk_request.delay(translation_request.pk)
             return redirect('admin:djangocms_translations_translationrequest_changelist')
 
         title = _('Create bulk translations (step 2)')
@@ -354,7 +374,7 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
     @method_decorator(staff_member_required)
     def translate_in_bulk_step_3(self, request):
         session = request.session
-        if session.get('bulk_translation_step') not in range(1, 4) or not(session.get('translation_request_pk')):
+        if session.get('bulk_translation_step') not in range(1, 4) or not (session.get('translation_request_pk')):
             raise Http404()
         session['bulk_translation_step'] = 3
 
@@ -375,7 +395,7 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
         session = request.session
         bulk_translation_step = session.get('bulk_translation_step')
 
-        if bulk_translation_step not in range(2, 4) or not(session.get('translation_request_pk')):
+        if bulk_translation_step not in range(2, 4) or not (session.get('translation_request_pk')):
             raise Http404()
 
         if bulk_translation_step == 2:

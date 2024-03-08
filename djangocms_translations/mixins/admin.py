@@ -91,20 +91,45 @@ class AppTranslationOrderInline(AllReadOnlyFieldsMixin, admin.StackedInline):
     price.short_description = _('Price')
 
 
-# class TranslationDirectiveAdminInlineForm(forms.ModelForm):
-#     class Meta:
-#         model = TranslationDirectiveInline
-#         fields = '__all__'
-#         widgets = {
-#             'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
-#         }
+class TranslationDirectiveAdminInlineForm(forms.ModelForm):
+    class Meta:
+        model = TranslationDirectiveInline
+        fields = '__all__'
+        # widgets = {
+        #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
+        # }
+
+    def __init__(self, *args, **kwargs):
+        super(TranslationDirectiveAdminInlineForm, self).__init__(*args, **kwargs)
+        self.fields['language'] = forms.CharField(
+            label='language',
+            widget=forms.Select(choices=settings.LANGUAGES),
+            required=False,
+        )
+
+
+class TranslationDirectiveAdminForm(forms.ModelForm):
+    class Meta:
+        model = TranslationDirective
+        fields = '__all__'
+        # widgets = {
+        #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
+        # }
+
+    def __init__(self, *args, **kwargs):
+        super(TranslationDirectiveAdminForm, self).__init__(*args, **kwargs)
+        self.fields['master_language'] = forms.CharField(
+            label='master language',
+            widget=forms.Select(choices=settings.LANGUAGES),
+            required=False,
+        )
 
 
 class TranslationDirectiveAdminInline(admin.TabularInline):
     model = TranslationDirectiveInline
     extra = 0
     classes = ['collapse']
-    # form = TranslationDirectiveAdminInlineForm
+    form = TranslationDirectiveAdminInlineForm
     # disable adding new directives
     can_delete = False
     max_num = len(settings.LANGUAGES)
@@ -113,6 +138,7 @@ class TranslationDirectiveAdminInline(admin.TabularInline):
 @admin.register(TranslationDirective)
 class TranslationDirectiveAdmin(admin.ModelAdmin):
     list_display = ("title", "master_language")
+    form = TranslationDirectiveAdminForm
     inlines = [
         TranslationDirectiveAdminInline,
     ]

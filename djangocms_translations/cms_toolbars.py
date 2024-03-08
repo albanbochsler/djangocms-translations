@@ -9,7 +9,6 @@ from django.utils.translation import ugettext_lazy as _
 from cms.toolbar_base import CMSToolbar
 from cms.toolbar_pool import toolbar_pool
 
-
 from .utils import get_language_name
 
 
@@ -30,11 +29,11 @@ class TranslationsToolbar(CMSToolbar):
         # menu.add_sideframe_item(_('Overview pages'), url=overview_url)
         menu.add_sideframe_item(_('AI directives'), url=directive_url)
 
-        # languages_within_this_site = settings.CMS_LANGUAGES[settings.SITE_ID]
-        # if len(languages_within_this_site) >= 2:
-        #     # Bulk translations work only within a site.
-        #     bulk_translate_url = reverse('admin:translate-in-bulk-step-1')
-        #     menu.add_modal_item(_('Translate in bulk'), url=bulk_translate_url)
+        languages_within_this_site = settings.CMS_LANGUAGES[settings.SITE_ID]
+        if len(languages_within_this_site) >= 2:
+            # Bulk translations work only within a site.
+            bulk_translate_url = reverse('admin:translate-in-bulk-step-1')
+            menu.add_modal_item(_('Translate in bulk'), url=bulk_translate_url)
 
         current_language = get_language_from_request(self.request)
         base_url = (

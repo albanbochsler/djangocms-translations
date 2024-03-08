@@ -135,8 +135,8 @@ class TranslationDirective(models.Model):
     master_language = models.CharField(
         _("master language"),
         max_length=10,
-        choices=settings.LANGUAGES,
-        default=settings.LANGUAGES[0][0],
+        # choices=settings.LANGUAGES,
+        # default=settings.LANGUAGES[0][0],
     )
 
     class Meta:
@@ -175,8 +175,8 @@ class TranslationDirectiveInline(models.Model):
         _("language"),
         max_length=10,
         editable=False,
-        choices=settings.LANGUAGES,
-        default=settings.LANGUAGES[0][0],
+        # choices=settings.LANGUAGES,
+        # default=settings.LANGUAGES[0][0],
     )
     directive_item = HTMLField("directive item", blank=True, null=True)
 
