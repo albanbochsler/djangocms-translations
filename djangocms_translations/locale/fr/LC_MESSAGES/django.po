@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-03-04 15:33+0100\n"
+"POT-Creation-Date: 2024-03-12 10:28+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -93,7 +93,7 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
-#: djangocms_translations/admin.py
+#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
 msgid "Create bulk translations"
 msgstr ""
 
@@ -127,6 +127,10 @@ msgid "AI directives"
 msgstr ""
 
 #: djangocms_translations/cms_toolbars.py
+msgid "Translate in bulk"
+msgstr ""
+
+#: djangocms_translations/cms_toolbars.py
 msgid "Translate this page"
 msgstr ""
 
@@ -153,6 +157,14 @@ msgstr ""
 #: djangocms_translations/forms.py djangocms_translations/mixins/forms.py
 msgid ""
 "<strong>({}) {}</strong><br>{}<br><br>Delivery until: {}<br>Price: {} {}"
+msgstr ""
+
+#: djangocms_translations/mixins/admin.py
+msgid "App models"
+msgstr ""
+
+#: djangocms_translations/mixins/admin.py
+msgid "Create bulk 2 translations"
 msgstr ""
 
 #: djangocms_translations/mixins/admin.py
@@ -311,6 +323,8 @@ msgstr ""
 msgid "1 week"
 msgstr ""
 
+#: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_app_create_step_1.html
+#: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_app_create_step_2.html
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_1.html
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_2.html
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_3.html
@@ -319,21 +333,24 @@ msgid_plural "Please correct the errors below."
 msgstr[0] ""
 msgstr[1] ""
 
+#: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_app_create_step_1.html
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_1.html
 msgid "Next"
 msgstr ""
 
+#: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_app_create_step_2.html
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_2.html
 msgid "Send for quote"
 msgstr ""
 
-#: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_2.html
-msgid "Send without quote"
-msgstr ""
-
+#: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_app_create_step_2.html
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_2.html
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_3.html
 msgid "Back"
+msgstr ""
+
+#: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_change_form.html
+msgid "Translate in Bulk"
 msgstr ""
 
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_3.html

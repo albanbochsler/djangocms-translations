@@ -1,0 +1,16 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block extrahead %}{{ block.super }}
+<script>
+    function closeSideframe() {
+        try {
+            window.top.CMS.$('.cms-sideframe-close').trigger('click.cms.sideframe');
+        } catch(e) {}
+    }
+</script>
+{% endblock %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+{% endblock %}

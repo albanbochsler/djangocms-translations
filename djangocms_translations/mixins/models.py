@@ -96,16 +96,16 @@ def import_plugins_to_app(placeholders, obj, language):
 
 
 def import_fields_to_model(return_fields, target_language):
-    translation_request_item_pk = return_fields[0]["translation_request_item_pk"]
-    link_object_id = return_fields[0]["link_object_id"]
-    request_item = AppTranslationRequestItem.objects.get(pk=translation_request_item_pk)
-    obj_model = apps.get_model(request_item.app_label, request_item.link_model)
-    obj = obj_model.objects.get(id=link_object_id)
-
-    if not obj.has_translation(target_language):
-        obj.create_translation(target_language)
-    conf = TRANSLATIONS_INLINE_CONF.items()
     for item in return_fields:
+        translation_request_item_pk = item["translation_request_item_pk"]
+        link_object_id = item["link_object_id"]
+        request_item = AppTranslationRequestItem.objects.get(pk=translation_request_item_pk)
+        obj_model = apps.get_model(request_item.app_label, request_item.link_model)
+        obj = obj_model.objects.get(id=link_object_id)
+
+        if not obj.has_translation(target_language):
+            obj.create_translation(target_language)
+        conf = TRANSLATIONS_INLINE_CONF.items()
         field_name = item["field_name"]
         content = item["content"]
 
