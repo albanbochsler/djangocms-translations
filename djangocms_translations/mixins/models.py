@@ -16,6 +16,7 @@ from django.apps import apps
 from django.db import models, IntegrityError
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
+from slugify import slugify
 
 from ..conf import TRANSLATIONS_INLINE_CONF
 # from allink_core.core.utils import get_model
@@ -54,6 +55,9 @@ def get_app_export_fields(obj, app_label, language):
         if field.auto_created or not field.editable or field.many_to_many:
             continue
         fields[field.name] = getattr(obj.get_translation(language), field.name)
+
+    if 'slug' in fields:
+        fields.pop('slug')
 
     fields.pop('language_code')
     fields.pop('master')
@@ -108,12 +112,13 @@ def import_fields_to_model(return_fields, target_language):
         conf = TRANSLATIONS_INLINE_CONF.items()
         field_name = item["field_name"]
         content = item["content"]
-
         if conf:
             for key, value in TRANSLATIONS_INLINE_CONF.items():
                 try:
                     if not field_name in value["fields"]:
                         setattr(obj.get_translation(target_language), field_name, content)
+                        if hasattr(obj, "slug") and field_name == 'title':
+                            obj.get_translation(target_language).slug = slugify(content)
                         obj.get_translation(target_language).save()
                     else:
                         # save to inline model
@@ -127,6 +132,8 @@ def import_fields_to_model(return_fields, target_language):
                     pass
         else:
             setattr(obj.get_translation(target_language), field_name, content)
+            if hasattr(obj, "slug") and field_name == 'title':
+                obj.get_translation(target_language).slug = slugify(content)
             obj.get_translation(target_language).save()
 
 
