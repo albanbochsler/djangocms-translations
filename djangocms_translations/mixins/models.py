@@ -58,9 +58,10 @@ def get_app_export_fields(obj, app_label, language):
 
     if 'slug' in fields:
         fields.pop('slug')
-
-    fields.pop('language_code')
-    fields.pop('master')
+    if 'language_code' in fields:
+        fields.pop('language_code')
+    if 'master' in fields:
+        fields.pop('master')
     data.append({'fields': fields, 'inlines': inlines})
 
     return data
@@ -117,7 +118,7 @@ def import_fields_to_model(return_fields, target_language):
                 try:
                     if not field_name in value["fields"]:
                         setattr(obj.get_translation(target_language), field_name, content)
-                        if hasattr(obj, "slug") and field_name == 'title':
+                        if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
                             obj.get_translation(target_language).slug = slugify(content)
                         obj.get_translation(target_language).save()
                     else:
@@ -132,7 +133,7 @@ def import_fields_to_model(return_fields, target_language):
                     pass
         else:
             setattr(obj.get_translation(target_language), field_name, content)
-            if hasattr(obj, "slug") and field_name == 'title':
+            if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
                 obj.get_translation(target_language).slug = slugify(content)
             obj.get_translation(target_language).save()
 
@@ -258,7 +259,7 @@ class AppTranslationRequest(models.Model):
         request_item_count = self.items.count()
 
         if request_item_count > 1:
-            bulk_text = _(' - {} pages').format(request_item_count)
+            bulk_text = _(' - {} objects').format(request_item_count)
         else:
             bulk_text = ''
         self.provider_order_name = _('Order #{} - {}{}').format(self.pk, initial_page_title, bulk_text)
