@@ -269,7 +269,7 @@ class GptTranslationProvider(BaseTranslationProvider):
                 if not item['Id'] == 'field':
                     plugin_dict = data[translation_request_item_pk][placeholder]
                     plugin = plugin_dict[plugin_id]
-                    plugin['data'][item['Id']] = item['Content']
+                    plugin['data'][item['Id']] = item['Content'].replace('&amp;', '&').replace('&nbsp;', ' ')
                     subplugins = _set_translation_import_content(item['Content'], plugin)
                     subplugins_already_processed.update(list(subplugins.keys()))
                     for subplugin_id, subplugin_content in subplugins.items():
@@ -285,7 +285,7 @@ class GptTranslationProvider(BaseTranslationProvider):
                         "translation_request_item_pk": translation_request_item_pk,
                         "link_object_id": plugin_id,
                         "field_name": placeholder,
-                        "content": item['Content']
+                        "content": item['Content'].replace('&amp;', '&').replace('&nbsp;', ' ')
                     })
 
         # TLRD: return_data is like {translation_request_item_pk: [<djangocms_transfer.ArchivedPlaceholder>, ]}
