@@ -242,7 +242,6 @@ class GptTranslationProvider(BaseTranslationProvider):
             pass
         return x_data
 
-
     def get_import_data(self):
         request = self.request
         export_content = json.loads(request.export_content)
@@ -274,9 +273,13 @@ class GptTranslationProvider(BaseTranslationProvider):
                     subplugins = _set_translation_import_content(item['Content'], plugin)
                     subplugins_already_processed.update(list(subplugins.keys()))
                     for subplugin_id, subplugin_content in subplugins.items():
-                        field = get_text_field_child_label(plugin_dict[subplugin_id]['plugin_type'])
-                        if field:
-                            plugin_dict[subplugin_id]['data'][field] = subplugin_content
+                        try:
+                            field = get_text_field_child_label(plugin_dict[subplugin_id]['plugin_type'])
+                            if field:
+                                plugin_dict[subplugin_id]['data'][field] = subplugin_content
+                        except KeyError as e:
+                            print("KeyError", e)
+                            pass
                 else:
                     _fields.append({
                         "translation_request_item_pk": translation_request_item_pk,

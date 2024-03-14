@@ -101,41 +101,47 @@ def import_plugins_to_app(placeholders, obj, language):
 
 
 def import_fields_to_model(return_fields, target_language):
+    conf = TRANSLATIONS_INLINE_CONF.items()
+
     for item in return_fields:
         translation_request_item_pk = item["translation_request_item_pk"]
         link_object_id = item["link_object_id"]
         request_item = AppTranslationRequestItem.objects.get(pk=translation_request_item_pk)
         obj_model = apps.get_model(request_item.app_label, request_item.link_model)
-        obj = obj_model.objects.get(id=link_object_id)
 
-        if not obj.has_translation(target_language):
-            obj.create_translation(target_language)
-        conf = TRANSLATIONS_INLINE_CONF.items()
-        field_name = item["field_name"]
-        content = item["content"]
-        if conf:
-            for key, value in TRANSLATIONS_INLINE_CONF.items():
-                try:
-                    if not field_name in value["fields"]:
-                        setattr(obj.get_translation(target_language), field_name, content)
-                        if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
-                            obj.get_translation(target_language).slug = slugify(content)
-                        obj.get_translation(target_language).save()
-                    else:
-                        # save to inline model
-                        inline_model = apps.get_model(request_item.app_label, key)
-                        inline_obj = inline_model.objects.get(pk=item["link_object_id"])
-                        if not inline_obj.has_translation(target_language):
-                            inline_obj.create_translation(target_language)
-                        setattr(inline_obj.get_translation(target_language), item["field_name"], content)
-                        inline_obj.get_translation(target_language).save()
-                except Exception as e:
-                    pass
-        else:
-            setattr(obj.get_translation(target_language), field_name, content)
-            if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
-                obj.get_translation(target_language).slug = slugify(content)
-            obj.get_translation(target_language).save()
+        try:
+            obj = obj_model.objects.get(id=request_item.link_object_id)
+            if not obj.has_translation(target_language):
+                obj.create_translation(target_language)
+            field_name = item["field_name"]
+            content = item["content"]
+            if conf:
+                for key, value in TRANSLATIONS_INLINE_CONF.items():
+                    try:
+                        if not field_name in value["fields"]:
+                            setattr(obj.get_translation(target_language), field_name, content)
+                            if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
+                                obj.get_translation(target_language).slug = slugify(content)
+                            obj.get_translation(target_language).save()
+                        else:
+                            # save to inline model
+                            inline_model = apps.get_model(request_item.app_label, key)
+                            inline_obj = inline_model.objects.get(pk=item["link_object_id"])
+                            if not inline_obj.has_translation(target_language):
+                                inline_obj.create_translation(target_language)
+                            setattr(inline_obj.get_translation(target_language), item["field_name"], content)
+                            inline_obj.get_translation(target_language).save()
+                    except Exception as e:
+                        pass
+            else:
+                setattr(obj.get_translation(target_language), field_name, content)
+                if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
+                    obj.get_translation(target_language).slug = slugify(content)
+                obj.get_translation(target_language).save()
+        except Exception as e:
+            print("Error: ", e)
+            print("request_item: ", (request_item.app_label, request_item.link_model))
+            continue
 
 
 class TranslationDirective(models.Model):
@@ -430,9 +436,7 @@ class AppTranslationRequestItem(models.Model):
         link_object_id = self.link_object_id
         obj_model = apps.get_model(app_label, model_label)
         obj = obj_model.objects.get(id=link_object_id)
-
         data = get_app_export_fields(obj, app_label, language)
-
         for d in data:
             d['translation_request_item_pk'] = self.pk
             d['app_label'] = self.app_label
