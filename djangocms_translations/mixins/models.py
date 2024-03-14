@@ -1,8 +1,7 @@
 import json
 import logging
 
-from cms.utils.copy_plugins import copy_plugins_to
-from django import forms
+from html import unescape
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from djangocms_text_ckeditor.fields import HTMLField
@@ -115,6 +114,8 @@ def import_fields_to_model(return_fields, target_language):
                 obj.create_translation(target_language)
             field_name = item["field_name"]
             content = item["content"]
+            # convert &amp; to & and &nbsp; to space in content
+            content = unescape(content)
             if conf:
                 for key, value in TRANSLATIONS_INLINE_CONF.items():
                     try:
