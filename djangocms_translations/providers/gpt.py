@@ -188,6 +188,7 @@ class GptTranslationProvider(BaseTranslationProvider):
                     })
 
         x_data['Groups'] = groups
+
         try:
             if self.request.export_fields:
                 _fields = []

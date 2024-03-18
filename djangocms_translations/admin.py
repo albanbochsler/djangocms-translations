@@ -362,7 +362,8 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
             session.pop('translation_request_pk')
             session.pop('bulk_translation_step')
             translation_request = TranslationRequest.objects.get(id=translation_request.pk)
-            translation_request.set_content_from_cms()
+            translation_request.set_content_from_cms(translate_content=translation_request.translate_content,
+                                                     translate_title=translation_request.translate_title)
             translation_request.get_quote_from_provider()
             # prepare_translation_bulk_request.delay(translation_request.pk)
             return redirect('admin:djangocms_translations_translationrequest_changelist')

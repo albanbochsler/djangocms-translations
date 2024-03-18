@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 
 import json
 import logging
+
+from cms.extensions.toolbar import ExtensionToolbar
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -21,6 +23,8 @@ from djangocms_transfer.importer import import_plugins_to_page
 from djangocms_transfer.utils import get_plugin_class
 from extended_choices import Choices
 
+from django.apps import apps
+from .conf import TRANSLATIONS_PAGE_CONF, TRANSLATIONS_TITLE_EXTENSION
 from .providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
 from .utils import get_plugin_form, pretty_json
 
@@ -69,8 +73,11 @@ class TranslationRequest(models.Model):
     provider_order_name = models.CharField(max_length=255, blank=True)
     provider_options = models.JSONField(default=dict, blank=True)
     export_content = models.JSONField(default=dict, blank=True)
+    export_fields = models.JSONField(default=dict, blank=True)
     request_content = models.JSONField(default=dict, blank=True)
     selected_quote = models.ForeignKey('TranslationQuote', blank=True, null=True, on_delete=models.CASCADE)
+    translate_content = models.BooleanField(default=True)
+    translate_title = models.BooleanField(default=True)
 
     @property
     def status(self):
@@ -103,13 +110,19 @@ class TranslationRequest(models.Model):
         self.provider_order_name = _('Order #{} - {}{}').format(self.pk, initial_page_title, bulk_text)
         self.save(update_fields=('provider_order_name',))
 
-    def set_content_from_cms(self):
+    def set_content_from_cms(self, translate_content=True, translate_title=True):
         export_content = []
+        export_fields = []
+
         for item in self.items.all():
-            export_content.extend(item.get_export_data(self.source_language))
+            if translate_content:
+                export_content.extend(item.get_export_data(self.source_language))
+            if translate_title:
+                export_fields.extend(item.get_export_fields(self.source_language))
 
         self.export_content = json.dumps(export_content, cls=DjangoJSONEncoder)
-        self.save(update_fields=('export_content',))
+        self.export_fields = json.dumps(export_fields, cls=DjangoJSONEncoder)
+        self.save(update_fields=('export_content', 'export_fields'))
         self.set_status(self.STATES.OPEN)
 
     def set_provider_options(self, **kwargs):
@@ -172,6 +185,7 @@ class TranslationRequest(models.Model):
 
         try:
             import_data, return_fields = self.provider.get_import_data()
+            print("import_response", import_data, return_fields)
         except ValueError:
             message = _('Received invalid data from {}.').format(self.provider_backend)
             logger.exception(message)
@@ -180,6 +194,9 @@ class TranslationRequest(models.Model):
 
         id_item_mapping = self.items.in_bulk()
         import_error = False
+        if return_fields:
+            import_fields_to_model(return_fields, self.target_language)
+
         for translation_request_item_pk, placeholders in import_data.items():
             translation_request_item = id_item_mapping[translation_request_item_pk]
             try:
@@ -275,6 +292,22 @@ class TranslationRequest(models.Model):
         return super(TranslationRequest, self).clean()
 
 
+def get_page_export_fields(page, language):
+    data = []
+    fields = {}
+    title = page.get_title_obj(language)
+    title_obj = title.allinktitleextension
+    try:
+        for field in title_obj._meta.get_fields():
+            if field.auto_created or not field.editable or field.many_to_many:
+                continue
+            fields[field.name] = getattr(title_obj, field.name)
+    except Exception as e:
+        pass
+    data.append({'fields': fields, 'inlines': []})
+    return data
+
+
 class TranslationRequestItem(models.Model):
     translation_request = models.ForeignKey(TranslationRequest, related_name='items', on_delete=models.CASCADE)
     source_cms_page = PageField(related_name='translation_requests_as_source', on_delete=models.PROTECT)
@@ -308,6 +341,32 @@ class TranslationRequestItem(models.Model):
         for d in data:
             d['translation_request_item_pk'] = self.pk
         return data
+
+    def get_export_fields(self, language):
+        data = get_page_export_fields(self.source_cms_page, language)
+        target_lang = self.translation_request.target_language
+        title = self.source_cms_page.get_title_obj(target_lang)
+        title_conf = TRANSLATIONS_TITLE_EXTENSION
+        title_extension_model = apps.get_model(title_conf["app_label"], title_conf["model_name"])
+        title_extension = title_extension_model.objects.get_or_create(extended_object_id=title.pk)
+        for d in data:
+            d['translation_request_item_pk'] = self.pk
+            d['pk'] = title_extension[0].pk
+        return data
+
+
+def import_fields_to_model(return_fields, language):
+    title_conf = TRANSLATIONS_TITLE_EXTENSION
+    title_extension_model = apps.get_model(title_conf["app_label"], title_conf["model_name"])
+    for item in return_fields:
+        translation_request_item_pk = item["link_object_id"]
+        title_extension = title_extension_model.objects.get(pk=translation_request_item_pk)
+        field_name = item["field_name"]
+        content = item["content"]
+        content = content.replace('&amp;', '&').replace('&nbsp;', ' ')
+        for key, value in item.items():
+            setattr(title_extension, field_name, content)
+        title_extension.save()
 
 
 class TranslationQuote(models.Model):

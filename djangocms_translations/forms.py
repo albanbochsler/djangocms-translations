@@ -63,6 +63,16 @@ class PageTreeMultipleChoiceField(forms.ModelMultipleChoiceField):
 class CreateTranslationForm(forms.ModelForm):
     source_cms_page = PageSelectFormField()
     target_cms_page = PageSelectFormField()
+    translate_content = forms.BooleanField(
+        label=_('Translate content'),
+        required=False,
+        initial=True,
+    )
+    translate_title = forms.BooleanField(
+        label=_('Translate title'),
+        required=False,
+        initial=True,
+    )
 
     class Meta:
         model = models.TranslationRequest
@@ -72,6 +82,8 @@ class CreateTranslationForm(forms.ModelForm):
             'target_cms_page',
             'target_language',
             'provider_backend',
+            'translate_content',
+            'translate_title',
         ]
 
     def __init__(self, *args, **kwargs):
@@ -87,6 +99,8 @@ class CreateTranslationForm(forms.ModelForm):
             source_language=self.cleaned_data['source_language'],
             target_language=self.cleaned_data['target_language'],
             provider_backend=self.cleaned_data['provider_backend'],
+            translate_content=self.cleaned_data['translate_content'],
+            translate_title=self.cleaned_data['translate_title'],
         )
 
         models.TranslationRequestItem(
@@ -104,6 +118,8 @@ class CreateTranslationForm(forms.ModelForm):
         translation_request.items.create(
             source_cms_page=self.cleaned_data['source_cms_page'],
             target_cms_page=self.cleaned_data['target_cms_page'],
+            translate_content=self.cleaned_data['translate_content'],
+            translate_title=self.cleaned_data['translate_title'],
         )
         translation_request.set_provider_order_name(self.cleaned_data['source_cms_page'])
         return translation_request
@@ -118,6 +134,8 @@ class TranslateInBulkStep1Form(forms.ModelForm):
             'source_language',
             'target_language',
             'provider_backend',
+            'translate_content',
+            'translate_title',
         ]
 
     def __init__(self, *args, **kwargs):
@@ -221,13 +239,14 @@ class ChooseTranslationQuoteForm(forms.ModelForm):
             '{}<br><br>'
             'Delivery until: {}<br>'
             'Price: {} {}'
-        ), obj.delivery_date_name, obj.name, obj.description, formatted_delivery_date, obj.price_currency, obj.price_amount)
-
+        ), obj.delivery_date_name, obj.name, obj.description, formatted_delivery_date, obj.price_currency,
+            obj.price_amount)
 
     def fix_widget_choices(self):
         widget = self.fields['selected_quote'].widget
         new_widget_choices = []
-        for translation_quote in models.TranslationQuote.objects.filter(pk__in=[choice[0].instance.pk for choice in widget.choices]):
+        for translation_quote in models.TranslationQuote.objects.filter(
+            pk__in=[choice[0].instance.pk for choice in widget.choices]):
             new_widget_choices.append((translation_quote.pk, self.get_choice_label(translation_quote)))
         widget.choices = new_widget_choices
 
