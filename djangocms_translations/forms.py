@@ -118,8 +118,6 @@ class CreateTranslationForm(forms.ModelForm):
         translation_request.items.create(
             source_cms_page=self.cleaned_data['source_cms_page'],
             target_cms_page=self.cleaned_data['target_cms_page'],
-            translate_content=self.cleaned_data['translate_content'],
-            translate_title=self.cleaned_data['translate_title'],
         )
         translation_request.set_provider_order_name(self.cleaned_data['source_cms_page'])
         return translation_request

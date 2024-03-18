@@ -188,7 +188,6 @@ class GptTranslationProvider(BaseTranslationProvider):
                     })
 
         x_data['Groups'] = groups
-
         try:
             if self.request.export_fields:
                 _fields = []
@@ -241,6 +240,30 @@ class GptTranslationProvider(BaseTranslationProvider):
                 x_data['Groups'] += _fields
         except AttributeError:
             pass
+
+        try:
+            if self.request.export_fields:
+                _fields = []
+                for fields in json.loads(self.request.export_fields):
+                    for k, v in fields['cms_title'].items():
+                        items = []
+                        if v:
+                            items.append({
+                                'Id': "field",
+                                'Content': v,
+                            })
+                        if items:
+                            _fields.append({
+                                'GroupId': '{}:{}:{}'.format(
+                                    fields['translation_request_item_pk'],
+                                    k, fields['pk']
+                                ),
+                                'Items': items
+                            })
+                x_data['Groups'] += _fields
+        except AttributeError:
+            pass
+
         return x_data
 
     def get_import_data(self):

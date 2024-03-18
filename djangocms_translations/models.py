@@ -24,6 +24,8 @@ from djangocms_transfer.utils import get_plugin_class
 from extended_choices import Choices
 
 from django.apps import apps
+from slugify import slugify
+
 from .conf import TRANSLATIONS_PAGE_CONF, TRANSLATIONS_TITLE_EXTENSION
 from .providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
 from .utils import get_plugin_form, pretty_json
@@ -295,16 +297,21 @@ class TranslationRequest(models.Model):
 def get_page_export_fields(page, language):
     data = []
     fields = {}
-    title = page.get_title_obj(language)
-    title_obj = title.allinktitleextension
+    title_obj = page.get_title_obj(language)
+    title_conf = TRANSLATIONS_TITLE_EXTENSION
     try:
-        for field in title_obj._meta.get_fields():
+        title_ext = getattr(title_obj, title_conf["model_name"])
+    except AttributeError:
+        return data
+
+    try:
+        for field in title_ext._meta.get_fields():
             if field.auto_created or not field.editable or field.many_to_many:
                 continue
-            fields[field.name] = getattr(title_obj, field.name)
+            fields[field.name] = getattr(title_ext, field.name)
     except Exception as e:
         pass
-    data.append({'fields': fields, 'inlines': []})
+    data.append({'fields': fields, 'inlines': [], 'cms_title': {'title': title_obj.title}})
     return data
 
 
@@ -352,6 +359,7 @@ class TranslationRequestItem(models.Model):
         for d in data:
             d['translation_request_item_pk'] = self.pk
             d['pk'] = title_extension[0].pk
+            d['title_pk'] = title.pk
         return data
 
 
@@ -359,11 +367,17 @@ def import_fields_to_model(return_fields, language):
     title_conf = TRANSLATIONS_TITLE_EXTENSION
     title_extension_model = apps.get_model(title_conf["app_label"], title_conf["model_name"])
     for item in return_fields:
-        translation_request_item_pk = item["link_object_id"]
-        title_extension = title_extension_model.objects.get(pk=translation_request_item_pk)
+        link_object_id = item["link_object_id"]
         field_name = item["field_name"]
         content = item["content"]
         content = content.replace('&amp;', '&').replace('&nbsp;', ' ')
+        title_extension = title_extension_model.objects.get(pk=link_object_id)
+        if field_name == "title":
+            extended_obj = title_extension.extended_object
+            extended_obj.title = content
+            extended_obj.path = extended_obj.page.get_path_for_slug(slugify(content), language)
+            extended_obj.save()
+            extended_obj.page.save()
         for key, value in item.items():
             setattr(title_extension, field_name, content)
         title_extension.save()
