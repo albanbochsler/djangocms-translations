@@ -44,7 +44,7 @@ class AllReadOnlyFieldsMixin(object):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        return True
 
 
 class TranslationRequestItemInline(AllReadOnlyFieldsMixin, admin.TabularInline):

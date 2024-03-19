@@ -71,6 +71,11 @@ class CreateTranslationForm(forms.ModelForm):
     translate_title = forms.BooleanField(
         label=_('Translate title'),
         required=False,
+        initial=False,
+    )
+    translate_seo = forms.BooleanField(
+        label=_('Translate Meta & Teaser'),
+        required=False,
         initial=True,
     )
 
@@ -84,6 +89,7 @@ class CreateTranslationForm(forms.ModelForm):
             'provider_backend',
             'translate_content',
             'translate_title',
+            'translate_seo',
         ]
 
     def __init__(self, *args, **kwargs):
@@ -101,6 +107,7 @@ class CreateTranslationForm(forms.ModelForm):
             provider_backend=self.cleaned_data['provider_backend'],
             translate_content=self.cleaned_data['translate_content'],
             translate_title=self.cleaned_data['translate_title'],
+            translate_seo=self.cleaned_data['translate_seo'],
         )
 
         models.TranslationRequestItem(
@@ -134,6 +141,7 @@ class TranslateInBulkStep1Form(forms.ModelForm):
             'provider_backend',
             'translate_content',
             'translate_title',
+            'translate_seo',
         ]
 
     def __init__(self, *args, **kwargs):

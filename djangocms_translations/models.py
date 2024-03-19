@@ -80,6 +80,7 @@ class TranslationRequest(models.Model):
     selected_quote = models.ForeignKey('TranslationQuote', blank=True, null=True, on_delete=models.CASCADE)
     translate_content = models.BooleanField(default=True)
     translate_title = models.BooleanField(default=True)
+    translate_seo = models.BooleanField(default=True)
 
     @property
     def status(self):
@@ -112,15 +113,15 @@ class TranslationRequest(models.Model):
         self.provider_order_name = _('Order #{} - {}{}').format(self.pk, initial_page_title, bulk_text)
         self.save(update_fields=('provider_order_name',))
 
-    def set_content_from_cms(self, translate_content=True, translate_title=True):
+    def set_content_from_cms(self, translate_content=True, translate_title=True, translate_seo=True):
         export_content = []
         export_fields = []
 
         for item in self.items.all():
             if translate_content:
                 export_content.extend(item.get_export_data(self.source_language))
-            if translate_title:
-                export_fields.extend(item.get_export_fields(self.source_language))
+            if translate_title or translate_seo:
+                export_fields.extend(item.get_export_fields(self.source_language, translate_title, translate_seo))
 
         self.export_content = json.dumps(export_content, cls=DjangoJSONEncoder)
         self.export_fields = json.dumps(export_fields, cls=DjangoJSONEncoder)
@@ -294,7 +295,7 @@ class TranslationRequest(models.Model):
         return super(TranslationRequest, self).clean()
 
 
-def get_page_export_fields(page, language):
+def get_page_export_fields(page, language, translate_title, translate_seo):
     data = []
     fields = {}
     title_obj = page.get_title_obj(language)
@@ -311,7 +312,15 @@ def get_page_export_fields(page, language):
             fields[field.name] = getattr(title_ext, field.name)
     except Exception as e:
         pass
-    data.append({'fields': fields, 'inlines': [], 'cms_title': {'title': title_obj.title}})
+
+    if translate_seo and translate_title:
+        data.append({'fields': fields, 'inlines': [], 'cms_title': {'title': title_obj.title}})
+    elif translate_seo:
+        data.append({'fields': fields, 'inlines': [], 'cms_title': {}})
+    elif translate_title:
+        data.append({'fields': {}, 'inlines': [], 'cms_title': {'title': title_obj.title}})
+
+    print("data", data)
     return data
 
 
@@ -349,8 +358,8 @@ class TranslationRequestItem(models.Model):
             d['translation_request_item_pk'] = self.pk
         return data
 
-    def get_export_fields(self, language):
-        data = get_page_export_fields(self.source_cms_page, language)
+    def get_export_fields(self, language, translate_title, translate_seo):
+        data = get_page_export_fields(self.source_cms_page, language, translate_title, translate_seo)
         target_lang = self.translation_request.target_language
         title = self.source_cms_page.get_title_obj(target_lang)
         title_conf = TRANSLATIONS_TITLE_EXTENSION
@@ -375,6 +384,7 @@ def import_fields_to_model(return_fields, language):
         if field_name == "title":
             extended_obj = title_extension.extended_object
             extended_obj.title = content
+            extended_obj.slug = slugify(content)
             extended_obj.path = extended_obj.page.get_path_for_slug(slugify(content), language)
             extended_obj.save()
             extended_obj.page.save()
