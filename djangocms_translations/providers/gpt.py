@@ -209,7 +209,7 @@ class GptTranslationProvider(BaseTranslationProvider):
                                 'Items': items
                             })
                 x_data['Groups'] += _fields
-        except AttributeError:
+        except Exception as e:
             pass
         try:
             if self.request.export_fields:
@@ -238,7 +238,7 @@ class GptTranslationProvider(BaseTranslationProvider):
                                     }]
                                     items = []
                 x_data['Groups'] += _fields
-        except AttributeError:
+        except Exception as e:
             pass
 
         try:
@@ -261,7 +261,7 @@ class GptTranslationProvider(BaseTranslationProvider):
                                 'Items': items
                             })
                 x_data['Groups'] += _fields
-        except AttributeError:
+        except Exception as e:
             pass
 
         return x_data
