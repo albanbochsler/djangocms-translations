@@ -50,6 +50,9 @@ def get_app_export_fields(obj, app_label, language):
             continue
 
     for field in obj.get_translation(language)._meta.get_fields():
+        if not isinstance(getattr(obj.get_translation(language), field.name), str):
+            continue
+
         if field.auto_created or not field.editable or field.many_to_many:
             continue
         fields[field.name] = getattr(obj.get_translation(language), field.name)

@@ -123,7 +123,9 @@ class CreateTranslationRequestView(CreateView):
 
     def form_valid(self, form):
         response = super(CreateTranslationRequestView, self).form_valid(form)
-        self.object.set_content_from_cms()
+        self.object.set_content_from_cms(translate_content=form.cleaned_data['translate_content'],
+                                         translate_title=form.cleaned_data['translate_title'],
+                                         translate_seo=form.cleaned_data['translate_seo'])
         self.object.get_quote_from_provider()
         return response
 

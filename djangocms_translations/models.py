@@ -188,7 +188,6 @@ class TranslationRequest(models.Model):
 
         try:
             import_data, return_fields = self.provider.get_import_data()
-            print("import_response", import_data, return_fields)
         except ValueError:
             message = _('Received invalid data from {}.').format(self.provider_backend)
             logger.exception(message)
@@ -302,10 +301,6 @@ def get_page_export_fields(page, language, translate_title, translate_seo):
     title_conf = TRANSLATIONS_TITLE_EXTENSION
     try:
         title_ext = getattr(title_obj, title_conf["model_name"])
-    except AttributeError:
-        return data
-
-    try:
         for field in title_ext._meta.get_fields():
             if field.auto_created or not field.editable or field.many_to_many:
                 continue
@@ -320,7 +315,6 @@ def get_page_export_fields(page, language, translate_title, translate_seo):
     elif translate_title:
         data.append({'fields': {}, 'inlines': [], 'cms_title': {'title': title_obj.title}})
 
-    print("data", data)
     return data
 
 
