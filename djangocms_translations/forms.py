@@ -242,11 +242,10 @@ class ChooseTranslationQuoteForm(forms.ModelForm):
         formatted_delivery_date = date_format(obj.delivery_date, "d. F Y")
         return format_html(_(
             '<strong>({}) {}</strong><br>'
-            '{}<br><br>'
-            'Delivery until: {}<br>'
-            'Price: {} {}'
-        ), obj.delivery_date_name, obj.name, obj.description, formatted_delivery_date, obj.price_currency,
-            obj.price_amount)
+            '{}'
+            # 'Delivery until: {}<br>'
+            # 'Price: {} {}'
+        ), obj.delivery_date_name, obj.name, obj.description,)
 
     def fix_widget_choices(self):
         widget = self.fields['selected_quote'].widget
