@@ -59,7 +59,7 @@ class TranslationRequest(models.Model):
     )
 
     PROVIDERS = [
-        (SupertextTranslationProvider.__name__, _('Supertext')),
+        # (SupertextTranslationProvider.__name__, _('Supertext')),
         (GptTranslationProvider.__name__, _('GPT'))
     ]
 
