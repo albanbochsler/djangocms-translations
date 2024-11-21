@@ -3,30 +3,26 @@ from __future__ import unicode_literals
 import json
 import logging
 
-from cms.models import CMSPlugin, Placeholder
+from cms.models import CMSPlugin, Placeholder, PageContent
 from cms.models.fields import PageField, PlaceholderField
 from cms.utils.plugins import copy_plugins_to_placeholder
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from djangocms_versioning import conf
 from djangocms_versioning.constants import PUBLISHED, DRAFT
-from djangocms_versioning.helpers import create_version_lock
-from djangocms_versioning.models import Version
 from extended_choices import Choices
 from slugify import slugify
 
 from .conf import TRANSLATIONS_TITLE_EXTENSION
 from .providers import TRANSLATION_PROVIDERS, GptTranslationProvider, DeeplProvider
 from .utils import get_plugin_form, get_page_export_data, get_plugin_class, \
-    import_plugins_to_content
+    import_plugins_to_content, create_page_content_translation
 
 logger = logging.getLogger('djangocms_translations')
 
@@ -179,13 +175,33 @@ class TranslationRequest(models.Model):
         # on success, update the requests status as well
         self.order.save(update_fields=('state',))
 
-    def get_new_version(self, page, language):
+    def get_new_version(self, page, source_language, target_language):
         from djangocms_versioning.models import Version
-        version = Version.objects.filter(
-            content_type__model='pagecontent',
-            object_id__in=page.pagecontent_set.filter(language=language).values_list('id', flat=True),
-            state=PUBLISHED,
-        ).first()
+
+        # Try to get the published page contents or if not existing the drafts. object.filter automatically gets
+        # only the draft objects.
+        pagecontent_set = PageContent.objects.filter(page=page, language=target_language)
+        if not pagecontent_set.exists():
+            pagecontent_set = PageContent.admin_manager.filter(page=page, language=target_language)
+
+        # If no page content exists. Create the first page content with first version.
+        if not pagecontent_set.exists():
+            page_content = page.pagecontent_set.filter(language=source_language).last()
+            if page_content:
+                # creates page content and automatically a version
+                if not create_page_content_translation(page_content, target_language):
+                    return None
+            content = PageContent.admin_manager.get(page=page, language=target_language)
+            version = Version.objects.get(
+                content_type__model='pagecontent',
+                object_id=content.id,
+                state=DRAFT,
+            )
+        else:
+            version = Version.objects.filter(
+                content_type__model='pagecontent',
+                object_id__in=pagecontent_set.values_list('id', flat=True),
+            ).first()
 
         new_version = version.copy(version.created_by)
         content = new_version.content
@@ -193,7 +209,7 @@ class TranslationRequest(models.Model):
             object_id=content.id,
         )
         for placeholder in placeholders:
-            placeholder.clear(language)
+            placeholder.clear(target_language)
 
         return new_version
 
@@ -218,8 +234,16 @@ class TranslationRequest(models.Model):
 
         for translation_request_item_pk, placeholders in import_data.items():
             translation_request_item = id_item_mapping[translation_request_item_pk]
-            # TODO: If target page is not published the source page is taken. That's wrong, investigate a solution
-            version = self.get_new_version(translation_request_item.target_cms_page, self.target_language)
+            version = self.get_new_version(
+                translation_request_item.target_cms_page, self.source_language, self.target_language
+            )
+            if not version:
+                message = _("Page content couldn't be created")
+                logger.exception(message)
+                import_state.set_error_message(message)
+                import_error = True
+
+                break
             try:
                 import_plugins_to_content(
                     placeholders=placeholders,
@@ -354,14 +378,14 @@ class TranslationRequestItem(models.Model):
                     _('Invalid choice. Page must contain {} translation.').format(
                         self.translation_request.source_language)
             })
-
-        page_languages = self.target_cms_page.get_languages()
-        if self.translation_request.target_language not in page_languages:
-            raise ValidationError({
-                'target_cms_page':
-                    _('Invalid choice. Page must contain {} translation.').format(
-                        self.translation_request.target_language)
-            })
+        # Validation if page content does not exists is not needed anymore
+        # page_languages = self.target_cms_page.get_languages()
+        # if self.translation_request.target_language not in page_languages:
+        #     raise ValidationError({
+        #         'target_cms_page':
+        #             _('Invalid choice. Page must contain {} translation.').format(
+        #                 self.translation_request.target_language)
+        #     })
 
         return super(TranslationRequestItem, self).clean()
 

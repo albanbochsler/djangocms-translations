@@ -283,7 +283,6 @@ def import_plugins_to_content(placeholders, language, content):
     for archived_placeholder in placeholders:
         plugins = archived_placeholder.plugins
         placeholder = page_placeholders.get(archived_placeholder.slot)
-        print(placeholder.id, placeholder.source.id)
         if placeholder and plugins:
             import_plugins(plugins, placeholder, language)
 
@@ -333,3 +332,25 @@ def _object_version_data_hook(data, for_page=False):
     if "plugin_type" in data:
         return ArchivedPlugin(**data)
     return data
+
+
+def create_page_content_translation(page_content, language):
+    page = page_content.page
+    try:
+        print(page_content.created_by)
+        user = User.objects.get(username=page_content.created_by)
+    except User.DoesNotExist:
+        # Just pick any admin user
+        user = User.objects.filter(is_superuser=True).first()
+    title_kwargs = {
+        "page": page,
+        "language": language,
+        "title": page_content.title,
+        "template": page_content.template,
+        "created_by": user,
+        "menu_title": page_content.menu_title,
+        "page_title": page_content.page_title,
+        "meta_description": page_content.meta_description,
+    }
+
+    return api.create_page_content(**title_kwargs)
