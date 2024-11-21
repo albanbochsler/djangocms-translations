@@ -3,12 +3,10 @@ import json
 from django.views.generic import CreateView, UpdateView
 from django.urls import reverse
 from . import forms, models
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST
 from django.core.exceptions import PermissionDenied
-from django.contrib import messages
-from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.db import IntegrityError
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import AppTranslationRequest
@@ -19,7 +17,6 @@ class CreateTranslationRequestView(CreateView):
     form_class = forms.CreateTranslationForm
 
     def get_success_url(self):
-        # return reverse('admin:djangocms_translations_apptranslationrequest_changelist')
         return reverse('admin:choose-app-translation-quote', kwargs={'pk': self.object.pk})
 
     def get_form_kwargs(self):
@@ -61,7 +58,6 @@ def process_provider_callback_view(request, pk):
         AppTranslationRequest
         .objects
         .all()
-        # .filter(state=AppTranslationRequest.STATES.IN_TRANSLATION)
     )
     trans_request = get_object_or_404(requests, pk=pk)
     # convert request body to dict

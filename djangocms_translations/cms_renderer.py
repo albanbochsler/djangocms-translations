@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
+from cms.plugin_rendering import StructureRenderer, _unpack_plugins
+from cms.utils.plugins import get_bound_plugins
 from django.utils.safestring import mark_safe
 
-from cms.plugin_rendering import StructureRenderer, _unpack_plugins
-from cms.utils.plugins import build_plugin_tree
 
-from djangocms_transfer.helpers import get_bound_plugins
-
+# from cms.utils.plugins import build_plugin_tree
 
 class UnboundPluginRenderer(StructureRenderer):
 
@@ -30,7 +28,7 @@ class UnboundPluginRenderer(StructureRenderer):
         plugins = get_bound_plugins(plugins)
         # This sucks but the cms expects it when rendering
         # the structure of plugins.
-        placeholder._plugins_cache = build_plugin_tree(plugins)
+        placeholder._plugins_cache = build_plugin_tree(plugins)  # TODO: Look for replacement
 
         for plugin in placeholder._plugins_cache:
             yield plugin

@@ -1,23 +1,28 @@
-# -*- coding: utf-8 -*-
 import json
+from collections import defaultdict, OrderedDict
+from functools import lru_cache
 from itertools import chain
 
+from cms import api
+from cms.extensions import extension_pool
+from cms.models import Page, CMSPlugin, PageContent, Placeholder
+from cms.plugin_pool import plugin_pool
+from cms.utils.placeholder import get_declared_placeholders_for_obj
+from cms.utils.plugins import copy_plugins_to_placeholder, get_bound_plugins
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import BooleanField, IntegerField
 from django.forms import modelform_factory
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language_info
-from djangocms_transfer.utils import get_plugin_class, get_plugin_model
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 from yurl import URL
-
-from functools import lru_cache
 from .conf import TRANSLATIONS_CONF
-from urllib.parse import urljoin
 
 try:
     from urllib.parse import urljoin
@@ -25,6 +30,16 @@ except ImportError:
     from urlparse import urljoin
 
 USE_HTTPS = getattr(settings, 'URLS_USE_HTTPS', False)
+
+
+@lru_cache()
+def get_plugin_class(plugin_type):
+    return plugin_pool.get_plugin(plugin_type)
+
+
+@lru_cache()
+def get_plugin_model(plugin_type):
+    return get_plugin_class(plugin_type).model
 
 
 def get_plugin_form_class(plugin_type, fields):
@@ -147,3 +162,174 @@ def get_page_url(page, language, is_https=False):
         ),
         page.get_absolute_url(language=language),
     )
+
+
+# TODO: For debugging
+def create_translation(page: Page, language):
+    title_kwargs = {
+        "page": page,
+        "language": language,
+        "slug": 'test',
+        "path": 'test',
+        "title": 'test',
+        "template": page.template,
+        "created_by": User.objects.first()
+    }
+    # content_defaults = {
+    #     "in_navigation": True,
+    # }
+    # title_kwargs.update(self.content_defaults)
+
+    # if "menu_title" in data:
+    #     title_kwargs["menu_title"] = data["menu_title"]
+    #
+    # if "page_title" in data:
+    #     title_kwargs["page_title"] = data["page_title"]
+    #
+    # if "meta_description" in data:
+    #     title_kwargs["meta_description"] = data["meta_description"]
+    return api.create_page_content(**title_kwargs)
+
+
+# TODO: For debugging
+# @transaction.atomic
+# def duplicate_page_content(source_page, target_page, source_language, target_language):
+#         translation = create_translation(target_page, target_language)
+#         target_page.page_content_cache[translation.language] = translation
+#
+#         extension_pool.copy_extensions(
+#             source_page=source_page,
+#             target_page=target_page,
+#             languages=[translation.language],
+#         )
+#         placeholders = source_page.get_placeholders(source_language)
+#
+#         for source_placeholder in placeholders:
+#             target_placeholder, is_created = translation.placeholders.get_or_create(
+#                 slot=source_placeholder.slot,
+#                 default_width=source_placeholder.default_width,
+#             )
+#             copy_plugins(source_placeholder, source_language, target_placeholder, target_language)
+#         return translation
+
+
+# TODO: For debugging
+# def copy_plugins(source_placeholder, source_language, target_placeholder, target_language):
+#     old_plugins = source_placeholder.get_plugins_list(language=source_language)
+#
+#     copied_plugins = copy_plugins_to_placeholder(old_plugins, target_placeholder, language=target_language)
+#     new_plugin_ids = (new.pk for new in copied_plugins)
+#
+#     target_placeholder.clear_cache(target_language)
+#
+#     new_plugins = CMSPlugin.objects.filter(pk__in=new_plugin_ids)
+#     new_plugins = list(new_plugins)
+#     return new_plugins
+
+
+@transaction.atomic
+def import_plugins(plugins, placeholder, language, root_plugin_id=None):
+    source_map = {}
+    new_plugins = []
+
+    if root_plugin_id:
+        root_plugin = CMSPlugin.objects.get(pk=root_plugin_id)
+        source_map[root_plugin_id] = root_plugin
+    else:
+        root_plugin = None
+
+    for archived_plugin in plugins:
+        # custom handling via "get_plugin_data" can lead to "null"-values
+        # instead of plugin-dictionaries. We skip those here.
+        if archived_plugin is None:
+            continue
+
+        if archived_plugin.parent_id:
+            parent = source_map[archived_plugin.parent_id]
+        else:
+            parent = root_plugin
+
+        if parent and parent.__class__ != CMSPlugin:
+            parent = parent.cmsplugin_ptr
+        plugin = archived_plugin.restore(
+            placeholder=placeholder,
+            language=language,
+            parent=parent,
+        )
+        source_map[archived_plugin.pk] = plugin
+
+        new_plugins.append(plugin)
+
+    for new_plugin in new_plugins:
+        plugin_class = get_plugin_class(new_plugin.plugin_type)
+
+        if getattr(plugin_class, "_has_do_post_copy", False):
+            # getattr is used for django CMS 3.4 compatibility
+            # apps on 3.4 wishing to leverage this callback will need
+            # to manually set the _has_do_post_copy attribute.
+            plugin_class.do_post_copy(new_plugin, source_map)
+
+
+@transaction.atomic
+def import_plugins_to_content(placeholders, language, content):
+    placeholder_obj_list = Placeholder.objects.filter(
+        object_id=content.id,
+    )
+
+    page_placeholders = OrderedDict()
+    for placeholder in placeholder_obj_list:
+        page_placeholders[placeholder.slot] = placeholder
+
+    for archived_placeholder in placeholders:
+        plugins = archived_placeholder.plugins
+        placeholder = page_placeholders.get(archived_placeholder.slot)
+        print(placeholder.id, placeholder.source.id)
+        if placeholder and plugins:
+            import_plugins(plugins, placeholder, language)
+
+
+@lru_cache()
+def get_plugin_fields(plugin_type):
+    klass = get_plugin_class(plugin_type)
+    if klass.model is CMSPlugin:
+        return []
+    opts = klass.model._meta.concrete_model._meta
+    fields = opts.local_fields + opts.local_many_to_many
+    return [field.name for field in fields]
+
+
+def get_placeholder_export_data(placeholder, language):
+    from . import helpers
+    get_data = helpers.get_plugin_data
+    plugins = placeholder.get_plugins(language)
+    # The following results in two queries;
+    # First all the root plugins are fetched, then all child plugins.
+    # This is needed to account for plugin path corruptions.
+
+    return [get_data(plugin) for plugin in get_bound_plugins(list(plugins))]
+
+
+def get_page_export_data(cms_page, language):
+    data = []
+    placeholders = cms_page.rescan_placeholders(language).values()
+
+    for placeholder in list(placeholders):
+        plugins = get_placeholder_export_data(placeholder, language)
+        data.append({"placeholder": placeholder.slot, "plugins": plugins})
+    return data
+
+
+def _object_version_data_hook(data, for_page=False):
+    from .datastructures import ArchivedPlaceholder, ArchivedPlugin
+    if not data:
+        return data
+
+    if "plugins" in data:
+        return ArchivedPlaceholder(
+            slot=data["placeholder"],
+            plugins=data["plugins"],
+        )
+
+    if "plugin_type" in data:
+        return ArchivedPlugin(**data)
+    return data

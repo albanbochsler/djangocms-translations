@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 
 from django.contrib import messages
@@ -8,7 +7,6 @@ from django.db import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.translation import ugettext
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import CreateView, DetailView, UpdateView
@@ -113,7 +111,11 @@ class CreateTranslationRequestView(CreateView):
     form_class = forms.CreateTranslationForm
 
     def get_success_url(self):
-        return reverse('admin:choose-translation-quote', kwargs={'pk': self.object.pk})
+        # Skip quote process
+        if self.object.provider.has_quote_selection:
+            return reverse('admin:choose-translation-quote', kwargs={'pk': self.object.pk})
+        return reverse('admin:djangocms_translations_translationrequest_changelist')
+
 
     def get_form_kwargs(self):
         form_kwargs = super(CreateTranslationRequestView, self).get_form_kwargs()
@@ -126,7 +128,13 @@ class CreateTranslationRequestView(CreateView):
         self.object.set_content_from_cms(translate_content=form.cleaned_data['translate_content'],
                                          translate_title=form.cleaned_data['translate_title'],
                                          translate_seo=form.cleaned_data['translate_seo'])
-        self.object.get_quote_from_provider()
+        if self.object.provider.has_quote_selection:
+            self.object.get_quote_from_provider()
+        else:
+            # Skip quote process
+            self.object.provider.save_export_data()
+            self.object.set_status(models.TranslationRequest.STATES.READY_FOR_SUBMISSION)
+            self.object.submit_request()
         return response
 
 

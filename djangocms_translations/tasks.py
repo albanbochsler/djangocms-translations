@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
-from celery import shared_task
+# from celery import shared_task
 
 from .models import TranslationRequest
 
-
-@shared_task
+#TODO: Check it's use and find alternative
+# @shared_task
 def prepare_translation_bulk_request(translation_request_id):
     translation_request = TranslationRequest.objects.get(id=translation_request_id)
     translation_request.set_content_from_cms()

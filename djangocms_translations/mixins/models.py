@@ -4,23 +4,24 @@ import logging
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from djangocms_text_ckeditor.fields import HTMLField
-from djangocms_transfer.exporter import get_placeholder_export_data
-from djangocms_transfer.importer import import_plugins
 from extended_choices import Choices
 from django.conf import settings
 from django.utils import timezone
 from django.apps import apps
 
 from django.db import models, IntegrityError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
 from slugify import slugify
 
 from ..conf import TRANSLATIONS_INLINE_CONF
-# from allink_core.core.utils import get_model
-from ..providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
+from ..exporter import get_placeholder_export_data
+from ..providers import TRANSLATION_PROVIDERS, GptTranslationProvider
 
 __all__ = ['AppTranslationRequest', 'AppTranslationRequestItem', 'TranslationDirective']
+
+from ..utils import import_plugins
+
 logger = logging.getLogger('djangocms_translations')
 
 

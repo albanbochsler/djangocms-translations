@@ -1,34 +1,32 @@
-# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 import json
 import logging
 
-from cms.extensions.toolbar import ExtensionToolbar
+from cms.models import CMSPlugin, Placeholder
+from cms.models.fields import PageField, PlaceholderField
+from cms.utils.plugins import copy_plugins_to_placeholder
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
-
-from cms.models import CMSPlugin
-from cms.models.fields import PageField, PlaceholderField
-from cms.utils.plugins import copy_plugins_to_placeholder
-
-from djangocms_transfer.exporter import get_page_export_data
-from djangocms_transfer.importer import import_plugins_to_page
-from djangocms_transfer.utils import get_plugin_class
+from django.utils.translation import gettext_lazy as _
+from djangocms_versioning import conf
+from djangocms_versioning.constants import PUBLISHED, DRAFT
+from djangocms_versioning.helpers import create_version_lock
+from djangocms_versioning.models import Version
 from extended_choices import Choices
-
-from django.apps import apps
 from slugify import slugify
 
-from .conf import TRANSLATIONS_PAGE_CONF, TRANSLATIONS_TITLE_EXTENSION
-from .providers import TRANSLATION_PROVIDERS, SupertextTranslationProvider, GptTranslationProvider
-from .utils import get_plugin_form, pretty_json
+from .conf import TRANSLATIONS_TITLE_EXTENSION
+from .providers import TRANSLATION_PROVIDERS, GptTranslationProvider, DeeplProvider
+from .utils import get_plugin_form, get_page_export_data, get_plugin_class, \
+    import_plugins_to_content
 
 logger = logging.getLogger('djangocms_translations')
 
@@ -60,7 +58,8 @@ class TranslationRequest(models.Model):
 
     PROVIDERS = [
         # (SupertextTranslationProvider.__name__, _('Supertext')),
-        (GptTranslationProvider.__name__, _('GPT'))
+        (GptTranslationProvider.__name__, _('GPT')),
+        (DeeplProvider.__name__, _('DeepL'))
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -180,6 +179,24 @@ class TranslationRequest(models.Model):
         # on success, update the requests status as well
         self.order.save(update_fields=('state',))
 
+    def get_new_version(self, page, language):
+        from djangocms_versioning.models import Version
+        version = Version.objects.filter(
+            content_type__model='pagecontent',
+            object_id__in=page.pagecontent_set.filter(language=language).values_list('id', flat=True),
+            state=PUBLISHED,
+        ).first()
+
+        new_version = version.copy(version.created_by)
+        content = new_version.content
+        placeholders = Placeholder.objects.filter(
+            object_id=content.id,
+        )
+        for placeholder in placeholders:
+            placeholder.clear(language)
+
+        return new_version
+
     def import_response(self, raw_data):
         import_state = TranslationImport.objects.create(request=self)
         self.set_status(self.STATES.IMPORT_STARTED)
@@ -201,11 +218,13 @@ class TranslationRequest(models.Model):
 
         for translation_request_item_pk, placeholders in import_data.items():
             translation_request_item = id_item_mapping[translation_request_item_pk]
+            # TODO: If target page is not published the source page is taken. That's wrong, investigate a solution
+            version = self.get_new_version(translation_request_item.target_cms_page, self.target_language)
             try:
-                import_plugins_to_page(
+                import_plugins_to_content(
                     placeholders=placeholders,
-                    page=translation_request_item.target_cms_page,
-                    language=self.target_language
+                    language=self.target_language,
+                    content=version.content
                 )
             except (IntegrityError, ObjectDoesNotExist):
                 self._set_import_archive()
@@ -297,7 +316,7 @@ class TranslationRequest(models.Model):
 def get_page_export_fields(page, language, translate_title, translate_seo):
     data = []
     fields = {}
-    title_obj = page.get_title_obj(language)
+    title_obj = page.get_content_obj(language)
     title_conf = TRANSLATIONS_TITLE_EXTENSION
     try:
         title_ext = getattr(title_obj, title_conf["model_name"])
@@ -355,7 +374,7 @@ class TranslationRequestItem(models.Model):
     def get_export_fields(self, language, translate_title, translate_seo):
         data = get_page_export_fields(self.source_cms_page, language, translate_title, translate_seo)
         target_lang = self.translation_request.target_language
-        title = self.source_cms_page.get_title_obj(target_lang)
+        title = self.source_cms_page.get_content_obj(target_lang)
         title_conf = TRANSLATIONS_TITLE_EXTENSION
         title_extension_model = apps.get_model(title_conf["app_label"], title_conf["model_name"])
         title_extension = title_extension_model.objects.get_or_create(extended_object_id=title.pk)

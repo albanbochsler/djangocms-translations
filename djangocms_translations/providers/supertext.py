@@ -1,19 +1,17 @@
-# -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict, defaultdict
 
 from django.conf import settings
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 import requests
 from djangocms_transfer.forms import _object_version_data_hook
-from djangocms_transfer.utils import get_plugin_class
 from extended_choices import Choices
 
 from .. import __version__ as djangocms_translations_version
 from ..utils import (
-    add_domain, get_text_field_child_label, get_translatable_fields,
+    add_domain, get_text_field_child_label, get_translatable_fields, get_plugin_class,
 )
 from .base import BaseTranslationProvider, ProviderException
 

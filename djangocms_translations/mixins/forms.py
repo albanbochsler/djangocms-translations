@@ -2,8 +2,7 @@ from . import models
 from django import forms
 from django.utils.formats import date_format
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 
 class CreateTranslationForm(forms.ModelForm):

@@ -1,18 +1,16 @@
-# -*- coding: utf-8 -*-
 import json
 
-from django.conf.urls import url
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Count, ManyToOneRel, Prefetch
 from django.http import Http404, HttpResponseNotFound
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, re_path, path
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from cms.admin.placeholderadmin import PlaceholderAdminMixin
 from cms.models import CMSPlugin
@@ -24,27 +22,13 @@ from .forms import (
     TranslateInBulkStep1Form, TranslateInBulkStep2Form,
     TranslateInBulkStep3Form,
 )
+from .mixins.admin import TranslationDirectiveAdminForm, TranslationDirectiveAdminInline, AllReadOnlyFieldsMixin
+from .mixins.models import TranslationDirective, AppTranslationRequest
 from .models import TranslationRequest
 from .tasks import prepare_translation_bulk_request
 from .utils import (
     get_language_name, get_page_url, get_plugin_form, pretty_json,
 )
-
-
-class AllReadOnlyFieldsMixin(object):
-    actions = None
-
-    def get_readonly_fields(self, request, obj=None):
-        return [
-            field.name for field in self.model._meta.get_fields()
-            if not isinstance(field, ManyToOneRel)
-        ] + list(self.readonly_fields)
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return True
 
 
 class TranslationRequestItemInline(AllReadOnlyFieldsMixin, admin.TabularInline):
@@ -439,75 +423,75 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
 
     def get_urls(self):
         return [
-            url(
-                r'translate-in-bulk-step-1/$',
+            path(
+                'translate-in-bulk-step-1/',
                 self.translate_in_bulk_step_1,
                 name='translate-in-bulk-step-1',
             ),
-            url(
-                r'translate-in-bulk-step-2/$',
+            path(
+                'translate-in-bulk-step-2/',
                 self.translate_in_bulk_step_2,
                 name='translate-in-bulk-step-2',
             ),
-            url(
-                r'translate-in-bulk-step-3/$',
+            path(
+                'translate-in-bulk-step-3/',
                 self.translate_in_bulk_step_3,
                 name='translate-in-bulk-step-3',
             ),
-            url(
-                r'translate-in-bulk-back/$',
+            path(
+                'translate-in-bulk-back/',
                 self.translate_in_bulk_back,
                 name='translate-in-bulk-back',
             ),
-            url(
-                r'add/$',
+            path(
+                'add/',
                 views.CreateTranslationRequestView.as_view(),
                 name='create-translation-request',
             ),
-            url(
-                r'(?P<pk>\w+)/choose-quote/$',
+            path(
+                '<int:pk>/choose-quote/$',
                 views.ChooseTranslationQuoteView.as_view(),
                 name='choose-translation-quote',
             ),
-            url(
-                r'(?P<pk>\w+)/get-quote-from-provider/$',
+            path(
+                '<int:pk>/get-quote-from-provider/$',
                 views.get_quote_from_provider_view,
                 name='get-quote-from-provider',
             ),
-            url(
-                r'(?P<pk>\w+)/check-status/$',
+            path(
+                '<int:pk>/check-status/',
                 views.CheckRequestStatusView.as_view(),
                 name='translation-request-check-status',
             ),
-            url(
-                r'(?P<pk>\w+)/callback/$',
+            path(
+                '<int:pk>/callback/',
                 views.process_provider_callback_view,
                 name='translation-request-provider-callback',
             ),
-            url(
-                r'(?P<pk>\w+)/adjust-import-data/$',
+            path(
+                '<int:pk>/adjust-import-data/',
                 views.adjust_import_data_view,
                 name='translation-request-adjust-import-data',
             ),
-            url(
-                r'(?P<pk>\w+)/import-from-archive/$',
+            path(
+                '<int:pk>/import-from-archive/',
                 views.import_from_archive,
                 name='translation-request-import-from-archive',
             ),
-            url(
-                r'(?P<pk>\w+)/pages-sent/$',
+            path(
+                '<int:pk>/pages-sent/',
                 self.pages_sent_view,
                 name='translation-request-pages-sent',
             ),
-            url(
-                r'(?P<pk>\w+)/log/$',
+            path(
+                '<int:pk>/log/',
                 self.show_log_view,
                 name='translation-request-show-log',
             ),
 
             # has to be the last one
-            url(
-                r'(?P<pk>\w+)/aa$',
+            path(
+                '<int:pk>/status/',
                 views.TranslationRequestStatusView.as_view(),
                 name='translation-request-detail',
             ),
@@ -588,7 +572,7 @@ class ArchivedPlaceholderAdmin(PlaceholderAdminMixin, admin.ModelAdmin):
         try:
             plugin_id = int(plugin_id)
         except ValueError:
-            return HttpResponseNotFound(force_text(_('Plugin not found')))
+            return HttpResponseNotFound(force_str(_('Plugin not found')))
 
         obj = self._get_plugin_from_id(plugin_id)
         plugin_class = plugin_pool.get_plugin(obj.plugin_type)
@@ -600,3 +584,17 @@ class ArchivedPlaceholderAdmin(PlaceholderAdminMixin, admin.ModelAdmin):
         query = request.GET.copy()
         query['plugin'] = plugin_id
         return redirect('{}?{}'.format(obj.get_add_url(), query.urlencode()))
+
+
+@admin.register(TranslationDirective)
+class TranslationDirectiveAdmin(admin.ModelAdmin):
+    list_display = ("title", "master_language")
+    form = TranslationDirectiveAdminForm
+    inlines = [
+        TranslationDirectiveAdminInline,
+    ]
+
+
+@admin.register(AppTranslationRequest)
+class AppTranslationRequestAdmin(admin.ModelAdmin):
+    pass

@@ -1,22 +1,22 @@
 import json
 from collections import OrderedDict, defaultdict
+
+import requests
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-import requests
 from djangocms_text_ckeditor.utils import plugin_to_tag, _plugin_tags_to_html, plugin_tags_to_id_list
-
-from ..conf import TRANSLATIONS_USE_STAGING, LANGUAGE_MAPPING
-from ..utils import get_plugin_class, _object_version_data_hook
 from extended_choices import Choices
 from yurl import URL
 
+from .base import BaseTranslationProvider, ProviderException
 from .. import __version__ as djangocms_translations_version
+from ..conf import TRANSLATIONS_USE_STAGING, LANGUAGE_MAPPING
+from ..utils import get_plugin_class, _object_version_data_hook
 from ..utils import (
     get_text_field_child_label, get_translatable_fields,
 )
-from .base import BaseTranslationProvider, ProviderException
 
 
 #TODO: Hardcoded url, is this still needed?
@@ -70,7 +70,7 @@ class SupertextException(ProviderException):
     pass
 
 
-class GptTranslationProvider(BaseTranslationProvider):
+class DeeplProvider(BaseTranslationProvider):
     API_LIVE_URL = 'https://ai-utils-allink.us.aldryn.io'
     API_STAGE_URL = 'http://host.docker.internal:8001'
     ORDER_TYPE_CHOICES = Choices(
@@ -87,7 +87,7 @@ class GptTranslationProvider(BaseTranslationProvider):
     )
     CURRENCY_KEY = 'Currency'
     PRICE_KEY = 'Price'
-    has_quote_selection = True
+    has_quote_selection = False
 
     def get_headers(self):
         return {
@@ -278,7 +278,6 @@ class GptTranslationProvider(BaseTranslationProvider):
                             if field:
                                 plugin_dict[subplugin_id]['data'][field] = subplugin_content
                         except KeyError as e:
-                            print("KeyError", e)
                             pass
                 else:
                     _fields.append({
@@ -301,6 +300,10 @@ class GptTranslationProvider(BaseTranslationProvider):
 
         return return_data, return_fields
 
+    def save_export_data(self):
+        self.request.request_content = self.get_export_data()
+        self.request.save(update_fields=('request_content',))
+
     def get_quote(self):
         self.request.request_content = self.get_export_data()
         self.request.save(update_fields=('request_content',))
@@ -321,8 +324,6 @@ class GptTranslationProvider(BaseTranslationProvider):
             json=data,
         )
 
-        print("response post", response.json())
-
         return response
 
     def send_request(self, is_app=False):
@@ -341,6 +342,7 @@ class GptTranslationProvider(BaseTranslationProvider):
             'OrderName': request.provider_order_name,
             'ReferenceData': request.pk,  # TODO: we should add a secret token here and then recheck when importing.
             'ComponentName': 'djangocms-translations',
+            'Provider': 'deepl',
             'ComponentVersion': djangocms_translations_version,
             'CallbackUrl': callback_url,
         })
@@ -380,7 +382,6 @@ class GptTranslationProvider(BaseTranslationProvider):
         # creating order endpoint returns list, not a json object
 
         response = self.get_translation_from_gpt(order.request_content)
-        print("response = ", response, response.json())
         order.provider_details = response.json()
         order.save(update_fields=('provider_details',))
         return response

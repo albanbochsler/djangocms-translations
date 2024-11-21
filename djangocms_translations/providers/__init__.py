@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 from .gpt import GptTranslationProvider
+from .deepl import DeeplProvider
 from .supertext import SupertextTranslationProvider
 
 TRANSLATION_PROVIDERS = {
@@ -7,5 +7,6 @@ TRANSLATION_PROVIDERS = {
     for cls in (
         SupertextTranslationProvider,
         GptTranslationProvider,
+        DeeplProvider,
     )
 }

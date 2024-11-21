@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 from django import forms
 from django.conf import settings
-from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from cms.forms.fields import PageSelectFormField
 from cms.models import Page
@@ -17,12 +15,11 @@ from .utils import get_page_url
 def _get_bulk_request_eligible_pages(source_language, target_language):
     base_qs = (
         Page.objects
-        .drafts()
+        .all()
         .select_related('node__parent')
-        .filter(node__site=settings.SITE_ID)
-        .filter(title_set__language__in=[source_language])
-        .filter(title_set__language__in=[target_language])
+        .filter(node__site=settings.SITE_ID, pagecontent_set__language__in=[source_language, target_language])
         .order_by('node__path')
+        .distinct()
     )
     ids_by_path = {}
     for page in base_qs.iterator():
@@ -171,7 +168,7 @@ class TranslateInBulkStep1Form(forms.ModelForm):
 class TranslateInBulkStep2Form(forms.Form):
     """ Step 2: adds <TranslationRequestItem>s to <TranslationRequest> created on Step 1. """
 
-    pages = PageTreeMultipleChoiceField(Page.objects.drafts())
+    pages = PageTreeMultipleChoiceField(Page.objects.all())
 
     def __init__(self, *args, **kwargs):
         self.translation_request = kwargs.pop('translation_request')
