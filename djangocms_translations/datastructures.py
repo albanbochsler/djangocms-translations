@@ -1,5 +1,7 @@
+import json
 from collections import namedtuple
 
+from django.contrib.postgres.fields import ArrayField
 from django.core.serializers import deserialize
 from django.db import transaction
 from django.utils.encoding import force_str
@@ -43,6 +45,8 @@ class ArchivedPlugin(BaseArchivedPlugin):
         if self.model is not CMSPlugin:
             fields = self.model._meta.get_fields()
             for field in fields:
+                if isinstance(field, ArrayField) and data[field.name]:
+                    data[field.name] = json.loads(data[field.name])
                 if field.related_model is not None:
                     if field.many_to_many:
                         if data.get(field.name):
