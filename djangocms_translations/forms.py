@@ -3,7 +3,7 @@ from django.conf import settings
 from django.utils.formats import date_format
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, gettext
 
 from cms.forms.fields import PageSelectFormField
 from cms.models import Page
@@ -216,7 +216,7 @@ class TranslateInBulkStep3Form(forms.Form):
         self.translation_request.set_provider_options(
             order_type=self.cleaned_data['order_type'],
             delivery_time=self.cleaned_data['delivery_time'],
-            additional_info=_('Order without quote'),
+            additional_info=gettext('Order without quote'),
         )
         # delete existing items before creating new ones
         self.translation_request.items.all().delete()

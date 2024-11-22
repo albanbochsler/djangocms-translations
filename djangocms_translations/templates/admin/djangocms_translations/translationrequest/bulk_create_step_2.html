@@ -69,7 +69,7 @@
         Target language: {{ translation_request.get_target_language_display }} <br>
         Provider backend: {{ translation_request.get_provider_backend_display }} <br>
     </p>
-    <form action="" method="post" enctype="multipart/form-data">
+    <form action="{% if not has_quote_selection %}.?instant-translate=true{% endif %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div>
             <fieldset class="module aligned">
@@ -90,7 +90,11 @@
             </fieldset>
         </div>
         <div class="submit-row">
-            <input type="submit" value="{% trans "Send for quote" %}" class="default" name="send-quote">
+            {% if has_quote_selection %}
+                <input type="submit" value="{% trans "Send for quote" %}" class="default">
+            {% else %}
+                <input type="submit" value="{% trans "Translate" %}" class="default">
+            {% endif %}
 {#            <input type="submit" value="{% trans "Send without quote" %}" class="default" name="send-without-quote">#}
             <a href="{% url 'admin:translate-in-bulk-back' %}" value="{% trans "Back" %}" class="button default" name="back">"{% trans "Back" %}"</a>
         </div>

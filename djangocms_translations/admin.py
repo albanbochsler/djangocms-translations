@@ -341,21 +341,26 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
         form = TranslateInBulkStep2Form(data=request.POST or None, translation_request=translation_request)
         if form.is_valid():
             form.save()
-            if 'send-without-quote' in request.POST:
-                return redirect('admin:translate-in-bulk-step-3')
             session.pop('translation_request_pk')
             session.pop('bulk_translation_step')
             translation_request = TranslationRequest.objects.get(id=translation_request.pk)
             translation_request.set_content_from_cms(translate_content=translation_request.translate_content,
                                                      translate_title=translation_request.translate_title,
                                                      translate_seo=translation_request.translate_seo)
-            translation_request.get_quote_from_provider()
+            if 'instant-translate' in request.GET:
+                translation_request.set_request_content()
+                translation_request.submit_request()
+            else:
+                translation_request.get_quote_from_provider()
             # prepare_translation_bulk_request.delay(translation_request.pk)
             return redirect('admin:djangocms_translations_translationrequest_changelist')
 
         title = _('Create bulk translations (step 2)')
         context = self._get_template_context(title, form, translation_request=translation_request)
-        return render(request, 'admin/djangocms_translations/translationrequest/bulk_create_step_2.html', context)
+        context['has_quote_selection'] = translation_request.provider.has_quote_selection
+        return render(
+            request, 'admin/djangocms_translations/translationrequest/bulk_create_step_2.html', context
+        )
 
     @method_decorator(staff_member_required)
     def translate_in_bulk_step_3(self, request):

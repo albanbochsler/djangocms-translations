@@ -351,7 +351,6 @@ class DeeplProvider(BaseTranslationProvider):
         if request.selected_quote:
             data.update(request.selected_quote.provider_options)
 
-        # Enables retrying requests to Supertext after error from Supertext API
         if is_app:
             order, created = AppTranslationOrder.objects.get_or_create(
                 request=request,
