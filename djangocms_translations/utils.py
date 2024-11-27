@@ -4,7 +4,7 @@ from functools import lru_cache
 from itertools import chain
 
 from cms import api
-from cms.models import Page, CMSPlugin, Placeholder, PlaceholderRelationField
+from cms.models import Page, CMSPlugin, Placeholder, PlaceholderRelationField, PageContent
 from cms.plugin_pool import plugin_pool
 from cms.utils.plugins import get_bound_plugins
 from django.apps import apps
@@ -17,13 +17,14 @@ from django.db.models import BooleanField, IntegerField
 from django.forms import modelform_factory
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language_info
+from djangocms_versioning.constants import DRAFT
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 from slugify import slugify
 from yurl import URL
 
-from .conf import TRANSLATIONS_CONF
+from .conf import TRANSLATIONS_CONF, TRANSLATIONS_TITLE_EXTENSION
 from .conf import TRANSLATIONS_INLINE_CONF
 from .exporter import get_placeholder_export_data
 
@@ -433,6 +434,13 @@ def import_fields_to_model(return_fields, language):
         content = item["content"]
         content = content.replace('&amp;', '&').replace('&nbsp;', ' ')
         title_extension = title_extension_model.objects.get(pk=link_object_id)
+        version = get_draft_page_version(title_extension.extended_object.page, language)
+        try:
+            title_extension = title_extension_model.objects.get(extended_object_id=version.content.id)
+        except title_extension_model.DoesNotExist:
+            title_extension = title_extension_model.objects.create(
+                extended_object_id=version.content.id
+            )
         if field_name == "title":
             extended_obj = title_extension.extended_object
             extended_obj.title = content
@@ -440,6 +448,20 @@ def import_fields_to_model(return_fields, language):
             extended_obj.path = extended_obj.page.get_path_for_slug(slugify(content), language)
             extended_obj.save()
             extended_obj.page.save()
+        # TODO: Check if this makes sense
         for key, value in item.items():
             setattr(title_extension, field_name, content)
         title_extension.save()
+
+
+def get_draft_page_version(page, target_language):
+    from djangocms_versioning.models import Version
+
+    page_contents = PageContent.admin_manager.filter(page=page, language=target_language)
+    version = Version.objects.get(
+        content_type__model='pagecontent',
+        object_id__in=page_contents.values_list('id', flat=True),
+        state=DRAFT,
+    )
+
+    return version

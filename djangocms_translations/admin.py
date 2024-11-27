@@ -798,7 +798,7 @@ class AppTranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
             ),
             path(
                 '<int:pk>/callback/',
-                views.process_provider_callback_view,
+                views.process_app_provider_callback_view,
                 name='app-translation-request-provider-callback',
             ),
 

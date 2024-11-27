@@ -234,7 +234,7 @@ class ChooseAppTranslationQuoteView(UpdateView):
 
 @csrf_exempt
 @require_POST
-def process_provider_callback_view(request, pk):
+def process_app_provider_callback_view(request, pk):
     requests = (
         models.AppTranslationRequest
         .objects
