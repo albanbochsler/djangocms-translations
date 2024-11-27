@@ -119,13 +119,13 @@ class CreateTranslationRequestView(CreateView):
 
 
     def get_form_kwargs(self):
-        form_kwargs = super(CreateTranslationRequestView, self).get_form_kwargs()
+        form_kwargs = super().get_form_kwargs()
         form_kwargs['user'] = self.request.user
         form_kwargs['initial'] = self.request.GET.dict()
         return form_kwargs
 
     def form_valid(self, form):
-        response = super(CreateTranslationRequestView, self).form_valid(form)
+        response = super().form_valid(form)
         self.object.set_content_from_cms(translate_content=form.cleaned_data['translate_content'],
                                          translate_title=form.cleaned_data['translate_title'],
                                          translate_seo=form.cleaned_data['translate_seo'])
@@ -183,3 +183,81 @@ class CheckRequestStatusView(DetailView):
         self.object.check_status()
         messages.success(request, 'Status updated.')
         return redirect(self.get_success_url())
+
+
+class CreateAppTranslationRequestView(CreateView):
+    template_name = 'djangocms_translations/create_request.html'
+    form_class = forms.CreateAppTranslationForm
+
+    def get_success_url(self):
+        if self.object.provider.has_quote_selection:
+            return reverse('admin:choose-app-translation-quote', kwargs={'pk': self.object.pk})
+        return reverse('admin:djangocms_translations_apptranslationrequest_changelist')
+
+    def get_form_kwargs(self):
+        form_kwargs = super().get_form_kwargs()
+        form_kwargs['user'] = self.request.user
+        form_kwargs['initial'] = self.request.GET.dict()
+        return form_kwargs
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.object.set_content_from_app()
+        # Skip quote process
+        if self.object.provider.has_quote_selection:
+            self.object.get_quote_from_provider()
+        else:
+            self.object.provider.save_export_data()
+            self.object.set_status(models.AppTranslationRequest.STATES.READY_FOR_SUBMISSION)
+            self.object.submit_request()
+        return response
+
+
+class ChooseAppTranslationQuoteView(UpdateView):
+    template_name = 'djangocms_translations/choose_quote.html'
+    form_class = forms.ChooseAppTranslationQuoteForm
+    model = models.AppTranslationRequest
+
+    def get_success_url(self):
+        try:
+            return reverse('admin:{}_{}_{}'.format(self.object.get_app_from_export_content(),
+                                                   self.object.get_app_from_export_content(), 'changelist'))
+        except Exception as e:
+            return reverse('admin:djangocms_translations_apptranslationrequest_changelist')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.object.set_status(models.AppTranslationRequest.STATES.READY_FOR_SUBMISSION)
+        self.object.submit_request()
+        return response
+
+
+@csrf_exempt
+@require_POST
+def process_provider_callback_view(request, pk):
+    requests = (
+        models.AppTranslationRequest
+        .objects
+        .all()
+        # .filter(state=AppTranslationRequest.STATES.IN_TRANSLATION)
+    )
+    trans_request = get_object_or_404(requests, pk=pk)
+    # convert request body to dict
+    request_body = json.loads(request.body)
+    success = trans_request.import_response(request_body)
+    return JsonResponse({'success': success})
+
+
+@require_POST
+def get_quote_from_provider_view(request, pk):
+    if not request.user.is_staff:
+        raise PermissionDenied
+
+    translation_request = get_object_or_404(
+        models.AppTranslationRequest.objects.filter(state=models.AppTranslationRequest.STATES.PENDING_QUOTE),
+        pk=pk,
+    )
+
+    translation_request.get_quote_from_provider()
+
+    return JsonResponse({'success': True})

@@ -258,3 +258,125 @@ class ChooseTranslationQuoteForm(forms.ModelForm):
         self.fields['selected_quote'].queryset = self.instance.quotes.all()
         self.fields['selected_quote'].empty_label = None
         self.fix_widget_choices()
+
+
+class TranslationDirectiveAdminForm(forms.ModelForm):
+    class Meta:
+        model = models.TranslationDirective
+        fields = '__all__'
+        # widgets = {
+        #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
+        # }
+
+    def __init__(self, *args, **kwargs):
+        super(TranslationDirectiveAdminForm, self).__init__(*args, **kwargs)
+        self.fields['master_language'] = forms.CharField(
+            label='master language',
+            widget=forms.Select(choices=settings.LANGUAGES),
+            required=False,
+        )
+
+
+class TranslationDirectiveAdminInlineForm(forms.ModelForm):
+    class Meta:
+        model = models.TranslationDirectiveInline
+        fields = '__all__'
+        # widgets = {
+        #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
+        # }
+
+    def __init__(self, *args, **kwargs):
+        super(TranslationDirectiveAdminInlineForm, self).__init__(*args, **kwargs)
+        self.fields['language'] = forms.CharField(
+            label='language',
+            widget=forms.Select(choices=settings.LANGUAGES),
+            required=False,
+        )
+
+
+class CreateAppTranslationForm(forms.ModelForm):
+    app_label = forms.CharField()  # better to use a ModelChoiceField with apphooks
+    link_model = forms.CharField()  # better to use a ModelChoiceField with apphooks
+    link_object_id = forms.IntegerField()
+
+    class Meta:
+        model = models.AppTranslationRequest
+        fields = [
+            'app_label',
+            'link_model',
+            'link_object_id',
+            'source_language',
+            'target_language',
+            'provider_backend',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def clean(self, *args, **kwargs):
+        super().clean(*args, **kwargs)
+        if not self.is_valid():
+            return
+
+        translation_request = models.AppTranslationRequest(
+            source_language=self.cleaned_data['source_language'],
+            target_language=self.cleaned_data['target_language'],
+            provider_backend=self.cleaned_data['provider_backend'],
+        )
+
+        models.AppTranslationRequestItem(
+            translation_request=translation_request,
+            app_label=self.cleaned_data['app_label'],
+            link_model=self.cleaned_data['link_model'],
+            link_object_id=self.cleaned_data['link_object_id'],
+        ).clean()
+
+        return self.cleaned_data
+
+    def save(self, *args, **kwargs):
+        self.instance.user = self.user
+        translation_request = super().save(*args, **kwargs)
+
+        translation_request.items.create(
+            app_label=self.cleaned_data['app_label'],
+            link_model=self.cleaned_data['link_model'],
+            link_object_id=self.cleaned_data['link_object_id'],
+        )
+        translation_request.set_provider_order_name(self.cleaned_data['link_model'])
+        return translation_request
+
+
+class ChooseAppTranslationQuoteForm(forms.ModelForm):
+    class Meta:
+        model = models.AppTranslationRequest
+        fields = (
+            'selected_quote',
+        )
+        widgets = {
+            'selected_quote': forms.RadioSelect(),
+        }
+
+    def get_choice_label(self, obj):
+        formatted_delivery_date = date_format(obj.delivery_date, "d. F Y")
+        return format_html(_(
+            '<strong>({}) {}</strong><br>'
+            '{}'
+            # 'Delivery until: {}<br>'
+            # 'Price: {} {}'
+        ), obj.delivery_date_name, obj.name, obj.description,)
+
+    def fix_widget_choices(self):
+        widget = self.fields['selected_quote'].widget
+        new_widget_choices = []
+        for translation_quote in models.AppTranslationQuote.objects.filter(
+            pk__in=[choice[0].instance.pk for choice in widget.choices]):
+            new_widget_choices.append((translation_quote.pk, self.get_choice_label(translation_quote)))
+        widget.choices = new_widget_choices
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['selected_quote'].required = True
+        self.fields['selected_quote'].queryset = self.instance.quotes.all()
+        self.fields['selected_quote'].empty_label = None
+        self.fix_widget_choices()

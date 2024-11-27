@@ -1,9 +1,10 @@
+import json
 from collections import OrderedDict
 from functools import lru_cache
 from itertools import chain
 
 from cms import api
-from cms.models import Page, CMSPlugin, Placeholder
+from cms.models import Page, CMSPlugin, Placeholder, PlaceholderRelationField
 from cms.plugin_pool import plugin_pool
 from cms.utils.plugins import get_bound_plugins
 from django.apps import apps
@@ -166,69 +167,6 @@ def get_page_url(page, language, is_https=False):
     )
 
 
-# TODO: For debugging
-def create_translation(page: Page, language):
-    title_kwargs = {
-        "page": page,
-        "language": language,
-        "slug": 'test',
-        "path": 'test',
-        "title": 'test',
-        "template": page.template,
-        "created_by": User.objects.first()
-    }
-    # content_defaults = {
-    #     "in_navigation": True,
-    # }
-    # title_kwargs.update(self.content_defaults)
-
-    # if "menu_title" in data:
-    #     title_kwargs["menu_title"] = data["menu_title"]
-    #
-    # if "page_title" in data:
-    #     title_kwargs["page_title"] = data["page_title"]
-    #
-    # if "meta_description" in data:
-    #     title_kwargs["meta_description"] = data["meta_description"]
-    return api.create_page_content(**title_kwargs)
-
-
-# TODO: For debugging
-# @transaction.atomic
-# def duplicate_page_content(source_page, target_page, source_language, target_language):
-#         translation = create_translation(target_page, target_language)
-#         target_page.page_content_cache[translation.language] = translation
-#
-#         extension_pool.copy_extensions(
-#             source_page=source_page,
-#             target_page=target_page,
-#             languages=[translation.language],
-#         )
-#         placeholders = source_page.get_placeholders(source_language)
-#
-#         for source_placeholder in placeholders:
-#             target_placeholder, is_created = translation.placeholders.get_or_create(
-#                 slot=source_placeholder.slot,
-#                 default_width=source_placeholder.default_width,
-#             )
-#             copy_plugins(source_placeholder, source_language, target_placeholder, target_language)
-#         return translation
-
-
-# TODO: For debugging
-# def copy_plugins(source_placeholder, source_language, target_placeholder, target_language):
-#     old_plugins = source_placeholder.get_plugins_list(language=source_language)
-#
-#     copied_plugins = copy_plugins_to_placeholder(old_plugins, target_placeholder, language=target_language)
-#     new_plugin_ids = (new.pk for new in copied_plugins)
-#
-#     target_placeholder.clear_cache(target_language)
-#
-#     new_plugins = CMSPlugin.objects.filter(pk__in=new_plugin_ids)
-#     new_plugins = list(new_plugins)
-#     return new_plugins
-
-
 @transaction.atomic
 def import_plugins(plugins, placeholder, language, root_plugin_id=None):
     source_map = {}
@@ -342,7 +280,6 @@ def _object_version_data_hook(data, for_page=False):
 def create_page_content_translation(page_content, language):
     page = page_content.page
     try:
-        print(page_content.created_by)
         user = User.objects.get(username=page_content.created_by)
     except User.DoesNotExist:
         # Just pick any admin user
@@ -367,8 +304,9 @@ def get_app_export_data(obj, language):
     placeholders = {}
 
     for field in obj._meta.get_fields():
-        if field.get_internal_type() == 'PlaceholderField':
-            placeholders[field.name] = getattr(obj, field.name)
+        if type(field) == PlaceholderRelationField:
+            for placeholder in getattr(obj, field.name).all():
+                placeholders[placeholder.slot] = placeholder
 
     for placeholder_name, placeholder in placeholders.items():
         plugins = get_placeholder_export_data(placeholder, language)
@@ -428,18 +366,18 @@ def import_plugins_to_app(placeholders, obj, language):
     old_placeholders = {}
 
     for field in obj._meta.get_fields():
-        if field.get_internal_type() == 'PlaceholderField':
-            old_placeholders[field.name] = getattr(obj, field.name)
+        if type(field) == PlaceholderRelationField:
+            for placeholder in getattr(obj, field.name).all():
+                old_placeholders[placeholder.slot] = placeholder
 
     for archived_placeholder in placeholders:
         plugins = archived_placeholder.plugins
         placeholder = old_placeholders[archived_placeholder.slot]
-        # placeholder = old_placeholders.get(archived_placeholder.slot)
         if placeholder and plugins:
             import_plugins(plugins, placeholder, language)
 
 
-def import_fields_to_model(return_fields, target_language):
+def import_fields_to_app_model(return_fields, target_language):
     conf = TRANSLATIONS_INLINE_CONF.items()
     from djangocms_translations.models import AppTranslationRequestItem
 
@@ -484,3 +422,24 @@ def import_fields_to_model(return_fields, target_language):
             print("Error: ", e)
             print("request_item: ", (request_item.app_label, request_item.link_model))
             continue
+
+
+def import_fields_to_model(return_fields, language):
+    title_conf = TRANSLATIONS_TITLE_EXTENSION
+    title_extension_model = apps.get_model(title_conf["app_label"], title_conf["model_name"])
+    for item in return_fields:
+        link_object_id = item["link_object_id"]
+        field_name = item["field_name"]
+        content = item["content"]
+        content = content.replace('&amp;', '&').replace('&nbsp;', ' ')
+        title_extension = title_extension_model.objects.get(pk=link_object_id)
+        if field_name == "title":
+            extended_obj = title_extension.extended_object
+            extended_obj.title = content
+            extended_obj.slug = slugify(content)
+            extended_obj.path = extended_obj.page.get_path_for_slug(slugify(content), language)
+            extended_obj.save()
+            extended_obj.page.save()
+        for key, value in item.items():
+            setattr(title_extension, field_name, content)
+        title_extension.save()

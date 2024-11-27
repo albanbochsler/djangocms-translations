@@ -1,7 +1,3 @@
-import json
-
-from django import forms
-from django.contrib.admin import ModelAdmin
 from django.db.models import ManyToOneRel
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -9,7 +5,6 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.contrib import admin
-from djangocms_translations.utils import pretty_json
 
 from django.forms import widgets
 from django.conf import settings
@@ -18,6 +13,7 @@ from .. import models
 
 __all__ = [
     'TranslateAppMixin',
+    'AppTranslationRequestAdmin',
 ]
 
 
@@ -35,181 +31,6 @@ class AllReadOnlyFieldsMixin(object):
 
     def has_delete_permission(self, request, obj=None):
         return True
-
-
-class AppTranslationRequestItemInline(AllReadOnlyFieldsMixin, admin.TabularInline):
-    model = models.AppTranslationRequestItem
-    extra = 0
-    classes = ['collapse']
-
-
-class AppTranslationQuoteInline(AllReadOnlyFieldsMixin, admin.TabularInline):
-    model = models.AppTranslationQuote
-    extra = 0
-    classes = ['collapse']
-
-
-class AppTranslationOrderInline(AllReadOnlyFieldsMixin, admin.StackedInline):
-    model = models.AppTranslationOrder
-    extra = 0
-    classes = ['collapse']
-
-    fields = (
-        'provider_order_id',
-        (
-            'date_created',
-            'date_translated',
-        ),
-        'state',
-        'pretty_provider_options',
-        'pretty_request_content',
-        'pretty_response_content',
-        'price',
-    )
-
-    readonly_fields = (
-        'provider_order_id',
-        'pretty_provider_options',
-        'pretty_request_content',
-        'pretty_response_content',
-        'price',
-    )
-
-    def provider_order_id(self, obj):
-        return obj.provider_details.get('Id') or obj.response_content.get('Id')
-
-    provider_order_id.short_description = _('Provider order ID')
-
-    def pretty_provider_options(self, obj):
-        return pretty_json(json.dumps(obj.provider_options))
-
-    pretty_provider_options.short_description = _('Provider options')
-
-    def pretty_request_content(self, obj):
-        return pretty_json(json.dumps(obj.request_content))
-
-    pretty_request_content.short_description = _('Request content')
-
-    def pretty_response_content(self, obj):
-        if isinstance(obj.response_content, dict):
-            data = json.dumps(obj.response_content)
-        else:
-            data = obj.response_content
-        return pretty_json(data)
-
-    pretty_response_content.short_description = _('Response content')
-
-    def price(self, obj):
-        return obj.price_with_currency
-
-    price.short_description = _('Price')
-
-
-class TranslationDirectiveAdminInlineForm(forms.ModelForm):
-    class Meta:
-        model = models.TranslationDirectiveInline
-        fields = '__all__'
-        # widgets = {
-        #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
-        # }
-
-    def __init__(self, *args, **kwargs):
-        super(TranslationDirectiveAdminInlineForm, self).__init__(*args, **kwargs)
-        self.fields['language'] = forms.CharField(
-            label='language',
-            widget=forms.Select(choices=settings.LANGUAGES),
-            required=False,
-        )
-
-
-class TranslationDirectiveAdminForm(forms.ModelForm):
-    class Meta:
-        model = models.TranslationDirective
-        fields = '__all__'
-        # widgets = {
-        #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
-        # }
-
-    def __init__(self, *args, **kwargs):
-        super(TranslationDirectiveAdminForm, self).__init__(*args, **kwargs)
-        self.fields['master_language'] = forms.CharField(
-            label='master language',
-            widget=forms.Select(choices=settings.LANGUAGES),
-            required=False,
-        )
-
-
-class TranslationDirectiveAdminInline(admin.TabularInline):
-    model = models.TranslationDirectiveInline
-    extra = 0
-    classes = ['collapse']
-    form = TranslationDirectiveAdminInlineForm
-    can_delete = False
-    max_num = len(settings.LANGUAGES)
-
-
-class TranslateAppBulkMixin(ModelAdmin):
-    """
-    ModelAdmin mixin used to add bulk translation of objects
-    """
-
-    def __init__(self, *args, **kwargs):
-        super(TranslateAppBulkMixin, self).__init__(*args, **kwargs)
-
-    def get_actions(self, request):
-        actions = super(TranslateAppBulkMixin, self).get_actions(request)
-        languages = getattr(settings, 'LANGUAGES', [])
-        for lang_code, lang_name in languages:
-            if lang_code == 'de':
-                continue
-            action_name = f"translate_in_bulk_{lang_code}"
-            actions[action_name] = (
-                self.make_translate_in_bulk_action(lang_code, lang_name),
-                action_name,
-                f"Translate to {lang_name}",
-
-            )
-        return actions
-
-    def make_translate_in_bulk_action(self, lang_code, lang_name):
-
-        def translate_in_bulk(modeladmin, request, queryset):
-            """
-            Action to translate the selected objects in bulk
-            """
-            app_label = self.model._meta.app_label
-            model_name = self.model._meta.model_name
-            user = request.user
-            source_lang = request.GET.get('source_language', 'de')
-            target_lang = lang_code
-            provider_backend = request.GET.get('provider_backend', 'GptTranslationProvider')
-
-            if request.method == 'POST':
-                translation_request = models.AppTranslationRequest.objects.create(
-                    user=user,
-                    source_language=source_lang,
-                    target_language=target_lang,
-                    provider_backend=provider_backend,
-                )
-                translation_request_items = [
-                    models.AppTranslationRequestItem(
-                        translation_request=translation_request,
-                        link_object_id=obj.pk,
-                        app_label=app_label,
-                        link_model=model_name,
-                    )
-                    for obj in queryset
-                ]
-                models.AppTranslationRequestItem.objects.bulk_create(translation_request_items)
-                translation_request.set_provider_order_name(app_label)
-                translation_request.set_content_from_app()
-                translation_request.get_quote_from_provider()
-                return redirect('admin:djangocms_translations_apptranslationrequest_changelist')
-
-        def action_wrapper(modeladmin, request, queryset):
-            return translate_in_bulk(modeladmin, request, queryset)
-
-        return action_wrapper
 
 
 class TranslateAppMixin(object):
@@ -293,3 +114,73 @@ class TranslateAppMixin(object):
         list_display = list(list_display) + ['translation_request_status', 'send_translation_request']
 
         return list_display
+
+
+class TranslateAppBulkMixin(admin.ModelAdmin):
+    """
+    ModelAdmin mixin used to add bulk translation of objects
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(TranslateAppBulkMixin, self).__init__(*args, **kwargs)
+
+    def get_actions(self, request):
+        actions = super(TranslateAppBulkMixin, self).get_actions(request)
+        languages = getattr(settings, 'LANGUAGES', [])
+        for lang_code, lang_name in languages:
+            if lang_code == 'de':
+                continue
+            action_name = f"translate_in_bulk_{lang_code}"
+            actions[action_name] = (
+                self.make_translate_in_bulk_action(lang_code, lang_name),
+                action_name,
+                f"Translate to {lang_name}",
+
+            )
+        return actions
+
+    def make_translate_in_bulk_action(self, lang_code, lang_name):
+
+        def translate_in_bulk(modeladmin, request, queryset):
+            """
+            Action to translate the selected objects in bulk
+            """
+            app_label = self.model._meta.app_label
+            model_name = self.model._meta.model_name
+            user = request.user
+            source_lang = request.GET.get('source_language', 'de')
+            target_lang = lang_code
+            provider_backend = request.GET.get('provider_backend', settings.DEFAULT_TRANSLATION_PROVIDER)
+
+            if request.method == 'POST':
+                translation_request = models.AppTranslationRequest.objects.create(
+                    user=user,
+                    source_language=source_lang,
+                    target_language=target_lang,
+                    provider_backend=provider_backend,
+                )
+                translation_request_items = [
+                    models.AppTranslationRequestItem(
+                        translation_request=translation_request,
+                        link_object_id=obj.pk,
+                        app_label=app_label,
+                        link_model=model_name,
+                    )
+                    for obj in queryset
+                ]
+                models.AppTranslationRequestItem.objects.bulk_create(translation_request_items)
+                translation_request.set_provider_order_name(app_label)
+                translation_request.set_content_from_app()
+                if translation_request.provider.has_quote_selection:
+                    translation_request.get_quote_from_provider()
+                    translation_request.get_quote_from_provider()
+                else:
+                    translation_request.provider.save_export_data()
+                    translation_request.set_status(models.AppTranslationRequest.STATES.READY_FOR_SUBMISSION)
+                    translation_request.submit_request()
+                return redirect('admin:djangocms_translations_apptranslationrequest_changelist')
+
+        def action_wrapper(modeladmin, request, queryset):
+            return translate_in_bulk(modeladmin, request, queryset)
+
+        return action_wrapper

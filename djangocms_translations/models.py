@@ -20,11 +20,11 @@ from djangocms_versioning.constants import PUBLISHED, DRAFT
 from extended_choices import Choices
 from slugify import slugify
 
-from .conf import TRANSLATIONS_TITLE_EXTENSION
+from .conf import TRANSLATIONS_TITLE_EXTENSION, TRANSLATIONS_INLINE_CONF
 from .providers import TRANSLATION_PROVIDERS, GptTranslationProvider, DeeplProvider
 from .utils import get_plugin_form, get_page_export_data, get_plugin_class, \
     import_plugins_to_content, create_page_content_translation, get_app_export_fields, get_app_export_data, \
-    import_plugins_to_app
+    import_plugins_to_app, import_fields_to_model, import_fields_to_app_model
 
 logger = logging.getLogger('djangocms_translations')
 
@@ -412,27 +412,6 @@ class TranslationRequestItem(models.Model):
         return data
 
 
-def import_fields_to_model(return_fields, language):
-    title_conf = TRANSLATIONS_TITLE_EXTENSION
-    title_extension_model = apps.get_model(title_conf["app_label"], title_conf["model_name"])
-    for item in return_fields:
-        link_object_id = item["link_object_id"]
-        field_name = item["field_name"]
-        content = item["content"]
-        content = content.replace('&amp;', '&').replace('&nbsp;', ' ')
-        title_extension = title_extension_model.objects.get(pk=link_object_id)
-        if field_name == "title":
-            extended_obj = title_extension.extended_object
-            extended_obj.title = content
-            extended_obj.slug = slugify(content)
-            extended_obj.path = extended_obj.page.get_path_for_slug(slugify(content), language)
-            extended_obj.save()
-            extended_obj.page.save()
-        for key, value in item.items():
-            setattr(title_extension, field_name, content)
-        title_extension.save()
-
-
 class TranslationQuote(models.Model):
     request = models.ForeignKey(TranslationRequest, related_name='quotes', on_delete=models.CASCADE)
     date_received = models.DateTimeField()
@@ -782,10 +761,9 @@ class AppTranslationRequest(models.Model):
 
         id_item_mapping = self.items.in_bulk()
         import_error = False
-        print("return_fields", return_fields)
 
         if return_fields:
-            import_fields_to_model(return_fields, self.target_language)
+            import_fields_to_app_model(return_fields, self.target_language)
 
         for translation_request_item_pk, placeholders in import_data.items():
             translation_request_item = id_item_mapping[translation_request_item_pk]
