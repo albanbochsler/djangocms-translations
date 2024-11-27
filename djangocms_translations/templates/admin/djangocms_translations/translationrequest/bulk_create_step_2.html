@@ -103,8 +103,8 @@
         (function ($) {
             $(document).ready(function() {
                 var selectAll = document.querySelector('#select-all');
-                var checkboxes = document.querySelectorAll('.pages-list ul input[type=checkbox]');
-                var selectChildrenLinks = document.querySelectorAll('.pages-list ul a.select-children');
+                var checkboxes = document.querySelectorAll('.pages-list input[type=checkbox]');
+                var selectChildrenLinks = document.querySelectorAll('.pages-list a.select-children');
                 var checkboxesArray = Array.prototype.slice.call(checkboxes);
                 var isEveryCheckboxChecked = function (checkboxes) {
                     return checkboxes.every(function (checkbox) {
@@ -179,7 +179,7 @@
                         }
 
                         // updating text of links for children of this node
-                        var matchingPathLinks = $('.pages-list ul a.select-children').filter(function () {
+                        var matchingPathLinks = $('.pages-list a.select-children').filter(function () {
                             return !!this.parentNode.querySelector('span[data-path^="' + path + '"]');
                         });
                         matchingPathLinks.each(function (i, element) {
@@ -187,12 +187,12 @@
                         });
 
                         // updating text of links for parents of this node
-                        var parentLinks = $('.pages-list ul a.select-children').filter(function () {
+                        var parentLinks = $('.pages-list a.select-children').filter(function () {
                             return !!this.parentNode.querySelector('span[data-path^="' + path.slice(0, 4) + '"]');
                         }).not(matchingPathLinks);
                         parentLinks.each(function (i, link) {
                             var path = $(link).parent().find('[data-path]').attr('data-path');
-                            var matchingParentPathCheckboxes = $('.pages-list ul input[type="checkbox"]').filter(function () {
+                            var matchingParentPathCheckboxes = $('.pages-list input[type="checkbox"]').filter(function () {
                                 return !!this.parentNode.querySelector('span[data-path^="' + path + '"]');
                             });
                             if (isEveryCheckboxChecked(matchingParentPathCheckboxes.toArray())) {
