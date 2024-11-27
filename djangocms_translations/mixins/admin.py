@@ -14,14 +14,11 @@ from djangocms_translations.utils import pretty_json
 from django.forms import widgets
 from django.conf import settings
 
-from . import models, views
+from .. import models
 
 __all__ = [
     'TranslateAppMixin',
 ]
-
-
-from .models import AppTranslationRequest, AppTranslationRequestItem, TranslationDirective, TranslationDirectiveInline
 
 
 class AllReadOnlyFieldsMixin(object):
@@ -110,7 +107,7 @@ class AppTranslationOrderInline(AllReadOnlyFieldsMixin, admin.StackedInline):
 
 class TranslationDirectiveAdminInlineForm(forms.ModelForm):
     class Meta:
-        model = TranslationDirectiveInline
+        model = models.TranslationDirectiveInline
         fields = '__all__'
         # widgets = {
         #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
@@ -127,7 +124,7 @@ class TranslationDirectiveAdminInlineForm(forms.ModelForm):
 
 class TranslationDirectiveAdminForm(forms.ModelForm):
     class Meta:
-        model = TranslationDirective
+        model = models.TranslationDirective
         fields = '__all__'
         # widgets = {
         #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
@@ -143,7 +140,7 @@ class TranslationDirectiveAdminForm(forms.ModelForm):
 
 
 class TranslationDirectiveAdminInline(admin.TabularInline):
-    model = TranslationDirectiveInline
+    model = models.TranslationDirectiveInline
     extra = 0
     classes = ['collapse']
     form = TranslationDirectiveAdminInlineForm
@@ -188,7 +185,7 @@ class TranslateAppBulkMixin(ModelAdmin):
             provider_backend = request.GET.get('provider_backend', 'GptTranslationProvider')
 
             if request.method == 'POST':
-                translation_request = AppTranslationRequest.objects.create(
+                translation_request = models.AppTranslationRequest.objects.create(
                     user=user,
                     source_language=source_lang,
                     target_language=target_lang,
@@ -230,7 +227,7 @@ class TranslateAppMixin(object):
         )
 
     def get_translation_request_items(self, obj):
-        items = AppTranslationRequestItem.objects.all()
+        items = models.AppTranslationRequestItem.objects.all()
         request_items = items.filter(link_object_id=obj.pk, link_model=obj._meta.model_name,
                                      app_label=obj._meta.app_label)
         if request_items:

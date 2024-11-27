@@ -7,6 +7,7 @@ from django.db import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import CreateView, DetailView, UpdateView
@@ -86,10 +87,10 @@ def import_from_archive(request, pk):
         try:
             trans_request._import_from_archive()
         except IntegrityError:
-            messages.error(request, ugettext('Failed to import plugins.'))
+            messages.error(request, gettext('Failed to import plugins.'))
             redirect_to = reverse('admin:translation-request-adjust-import-data', args=(pk,))
         else:
-            messages.error(request, ugettext('Plugins imported successfully.'))
+            messages.error(request, gettext('Plugins imported successfully.'))
             redirect_to = get_page_url(
                 target_cms_page,
                 trans_request.target_language,
@@ -98,7 +99,7 @@ def import_from_archive(request, pk):
         return redirect(redirect_to)
 
     context = {
-        "title": ugettext('Import from archive'),
+        "title": gettext('Import from archive'),
         "object": trans_request,
         "opts": TranslationRequest._meta,
         "app_label": TranslationRequest._meta.app_label,

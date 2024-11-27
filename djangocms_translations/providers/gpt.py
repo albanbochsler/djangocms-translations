@@ -108,7 +108,7 @@ class GptTranslationProvider(BaseTranslationProvider):
         return response
 
     def get_export_data(self):
-        from ..mixins.models import TranslationDirective
+        from ..models import TranslationDirective
 
         directives_dict = {}
         for directive in TranslationDirective.objects.all():
@@ -326,8 +326,7 @@ class GptTranslationProvider(BaseTranslationProvider):
         return response
 
     def send_request(self, is_app=False):
-        from ..models import TranslationOrder
-        from ..mixins.models import AppTranslationOrder
+        from ..models import TranslationOrder, AppTranslationOrder
 
         request = self.request
         if is_app:

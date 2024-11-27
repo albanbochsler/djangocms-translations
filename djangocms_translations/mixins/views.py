@@ -2,14 +2,13 @@ import json
 
 from django.views.generic import CreateView, UpdateView
 from django.urls import reverse
-from . import forms, models
+from . import forms
+from .. import models
 from django.views.decorators.http import require_POST
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
-
-from .models import AppTranslationRequest
 
 
 class CreateTranslationRequestView(CreateView):
@@ -55,7 +54,7 @@ class ChooseTranslationQuoteView(UpdateView):
 @require_POST
 def process_provider_callback_view(request, pk):
     requests = (
-        AppTranslationRequest
+        models.AppTranslationRequest
         .objects
         .all()
     )
@@ -72,7 +71,7 @@ def get_quote_from_provider_view(request, pk):
         raise PermissionDenied
 
     translation_request = get_object_or_404(
-        AppTranslationRequest.objects.filter(state=AppTranslationRequest.STATES.PENDING_QUOTE),
+        models.AppTranslationRequest.objects.filter(state=models.AppTranslationRequest.STATES.PENDING_QUOTE),
         pk=pk,
     )
 

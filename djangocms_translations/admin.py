@@ -23,9 +23,7 @@ from .forms import (
     TranslateInBulkStep3Form,
 )
 from .mixins.admin import TranslationDirectiveAdminForm, TranslationDirectiveAdminInline, AllReadOnlyFieldsMixin
-from .mixins.models import TranslationDirective, AppTranslationRequest
-from .models import TranslationRequest
-from .tasks import prepare_translation_bulk_request
+from .models import TranslationRequest, TranslationDirective, AppTranslationRequest
 from .utils import (
     get_language_name, get_page_url, get_plugin_form, pretty_json,
 )

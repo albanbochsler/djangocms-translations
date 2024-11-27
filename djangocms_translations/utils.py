@@ -1,14 +1,12 @@
-import json
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 from functools import lru_cache
 from itertools import chain
 
 from cms import api
-from cms.extensions import extension_pool
-from cms.models import Page, CMSPlugin, PageContent, Placeholder
+from cms.models import Page, CMSPlugin, Placeholder
 from cms.plugin_pool import plugin_pool
-from cms.utils.placeholder import get_declared_placeholders_for_obj
-from cms.utils.plugins import copy_plugins_to_placeholder, get_bound_plugins
+from cms.utils.plugins import get_bound_plugins
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
@@ -21,8 +19,12 @@ from django.utils.translation import get_language_info
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
+from slugify import slugify
 from yurl import URL
+
 from .conf import TRANSLATIONS_CONF
+from .conf import TRANSLATIONS_INLINE_CONF
+from .exporter import get_placeholder_export_data
 
 try:
     from urllib.parse import urljoin
@@ -310,7 +312,10 @@ def get_placeholder_export_data(placeholder, language):
 
 def get_page_export_data(cms_page, language):
     data = []
-    placeholders = cms_page.rescan_placeholders(language).values()
+    try:
+        placeholders = cms_page.rescan_placeholders(language).values()
+    except AttributeError:
+        return data
 
     for placeholder in list(placeholders):
         plugins = get_placeholder_export_data(placeholder, language)
@@ -354,3 +359,128 @@ def create_page_content_translation(page_content, language):
     }
 
     return api.create_page_content(**title_kwargs)
+
+
+
+def get_app_export_data(obj, language):
+    data = []
+    placeholders = {}
+
+    for field in obj._meta.get_fields():
+        if field.get_internal_type() == 'PlaceholderField':
+            placeholders[field.name] = getattr(obj, field.name)
+
+    for placeholder_name, placeholder in placeholders.items():
+        plugins = get_placeholder_export_data(placeholder, language)
+        data.append({'placeholder': placeholder_name, 'plugins': plugins})
+
+    return data
+
+
+def get_app_export_fields(obj, app_label, language):
+    data = []
+    fields = {}
+
+    inlines = get_app_inline_fields(obj, app_label, language)
+
+    for field in obj._meta.get_fields():
+        if field.auto_created or not field.editable or field.many_to_many:
+            continue
+
+    for field in obj.get_translation(language)._meta.get_fields():
+        if not isinstance(getattr(obj.get_translation(language), field.name), str):
+            continue
+
+        if field.auto_created or not field.editable or field.many_to_many:
+            continue
+        fields[field.name] = getattr(obj.get_translation(language), field.name)
+
+    if 'slug' in fields:
+        fields.pop('slug')
+    if 'language_code' in fields:
+        fields.pop('language_code')
+    if 'master' in fields:
+        fields.pop('master')
+    data.append({'fields': fields, 'inlines': inlines})
+
+    return data
+
+
+def get_app_inline_fields(obj, app_label, language):
+    inline_fields = {}
+    for key, value in TRANSLATIONS_INLINE_CONF.items():
+        try:
+            for field in getattr(obj, value["related_name"]).all():
+                inline_fields.setdefault(field.pk, {})
+
+                inline_fields[field.pk] = [{
+                    object.name: getattr(field.get_translation(language), object.name)
+                    for object in field.get_translation(language)._meta.get_fields() if
+                    object.name != 'language_code' and object.name != 'master'
+                }]
+        except Exception as e:
+            pass
+
+    return inline_fields
+
+
+def import_plugins_to_app(placeholders, obj, language):
+    old_placeholders = {}
+
+    for field in obj._meta.get_fields():
+        if field.get_internal_type() == 'PlaceholderField':
+            old_placeholders[field.name] = getattr(obj, field.name)
+
+    for archived_placeholder in placeholders:
+        plugins = archived_placeholder.plugins
+        placeholder = old_placeholders[archived_placeholder.slot]
+        # placeholder = old_placeholders.get(archived_placeholder.slot)
+        if placeholder and plugins:
+            import_plugins(plugins, placeholder, language)
+
+
+def import_fields_to_model(return_fields, target_language):
+    conf = TRANSLATIONS_INLINE_CONF.items()
+    from djangocms_translations.models import AppTranslationRequestItem
+
+    for item in return_fields:
+        translation_request_item_pk = item["translation_request_item_pk"]
+        link_object_id = item["link_object_id"]
+        request_item = AppTranslationRequestItem.objects.get(pk=translation_request_item_pk)
+        obj_model = apps.get_model(request_item.app_label, request_item.link_model)
+
+        try:
+            obj = obj_model.objects.get(id=request_item.link_object_id)
+            if not obj.has_translation(target_language):
+                obj.create_translation(target_language)
+            field_name = item["field_name"]
+            content = item["content"]
+            # convert &amp; to & and &nbsp; to space in content
+            content = content.replace('&amp;', '&').replace('&nbsp;', ' ')
+            if conf:
+                for key, value in TRANSLATIONS_INLINE_CONF.items():
+                    try:
+                        if not field_name in value["fields"]:
+                            setattr(obj.get_translation(target_language), field_name, content)
+                            if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
+                                obj.get_translation(target_language).slug = slugify(content)
+                            obj.get_translation(target_language).save()
+                        else:
+                            # save to inline model
+                            inline_model = apps.get_model(request_item.app_label, key)
+                            inline_obj = inline_model.objects.get(pk=item["link_object_id"])
+                            if not inline_obj.has_translation(target_language):
+                                inline_obj.create_translation(target_language)
+                            setattr(inline_obj.get_translation(target_language), item["field_name"], content)
+                            inline_obj.get_translation(target_language).save()
+                    except Exception as e:
+                        pass
+            else:
+                setattr(obj.get_translation(target_language), field_name, content)
+                if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
+                    obj.get_translation(target_language).slug = slugify(content)
+                obj.get_translation(target_language).save()
+        except Exception as e:
+            print("Error: ", e)
+            print("request_item: ", (request_item.app_label, request_item.link_model))
+            continue
