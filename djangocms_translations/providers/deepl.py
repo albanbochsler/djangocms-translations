@@ -66,7 +66,7 @@ def _set_translation_import_content(enriched_content, plugin):
     return result
 
 
-class SupertextException(ProviderException):
+class DeeplException(ProviderException):
     pass
 
 
@@ -104,7 +104,7 @@ class DeeplProvider(BaseTranslationProvider):
         )
 
         if not response.ok:
-            raise SupertextException(response.text)
+            raise DeeplException(response.text)
         return response
 
     def get_export_data(self):
@@ -128,11 +128,6 @@ class DeeplProvider(BaseTranslationProvider):
         }
         groups = []
         fields_by_plugin = {}
-
-        # if self.request.export_fields:
-        #     for field in json.loads(self.request.export_fields):
-        #         print("field", field)
-        # check if field has content
 
         for placeholder in json.loads(self.request.export_content):
             subplugins_already_processed = set()
@@ -246,10 +241,7 @@ class DeeplProvider(BaseTranslationProvider):
         request = self.request
         export_content = json.loads(request.export_content)
         import_content = request.order.response_content
-        # import_content = json.loads(request.order.response_content)
         subplugins_already_processed = set()
-        # _fields = {"fields": {}, "translation_request_item_pk": None, "field_name": None, "link_object_id": None,
-        #            "pk": None}
         _fields = []
         # TLRD: data is like {translation_request_item_pk: {placeholder_name: {plugin_pk: plugin_dict}}}
         data = defaultdict(dict)
@@ -362,24 +354,6 @@ class DeeplProvider(BaseTranslationProvider):
                 defaults={'request_content': data}
             )
 
-        # Make request to OpenAI API
-
-        response = {
-            "Id": "1",
-            "Name": "Test",
-            "SourceLang": "en",
-            "TargetLanguages": [
-                "de"
-            ],
-            "Status": "New",
-            "Price": 0.0,
-            "PriceCurrency": "EUR",
-            "DeliveryTime": 0
-        }
-
-        # Supports only SupertextAPI v1.1
-        # creating order endpoint returns list, not a json object
-
         response = self.get_translation_from_gpt(order.request_content)
         order.provider_details = response.json()
         order.save(update_fields=('provider_details',))
@@ -395,11 +369,9 @@ class DeeplProvider(BaseTranslationProvider):
         return response.json()
 
     def get_order_type_choices(self):
-        # Supertext didnt provide any endpoint to fetch this list
         return self.ORDER_TYPE_CHOICES
 
     def get_delivery_time_choices(self):
-        # Supertext didnt provide any endpoint to fetch this list
         return self.DELIVERY_TIME_CHOICES
 
     def get_provider_options(self, **kwargs):

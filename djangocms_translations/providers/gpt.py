@@ -66,7 +66,7 @@ def _set_translation_import_content(enriched_content, plugin):
     return result
 
 
-class SupertextException(ProviderException):
+class GPTException(ProviderException):
     pass
 
 
@@ -104,7 +104,7 @@ class GptTranslationProvider(BaseTranslationProvider):
         )
 
         if not response.ok:
-            raise SupertextException(response.text)
+            raise GPTException(response.text)
         return response
 
     def get_export_data(self):
