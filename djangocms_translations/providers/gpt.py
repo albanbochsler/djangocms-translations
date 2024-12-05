@@ -87,6 +87,7 @@ class GptTranslationProvider(BaseTranslationProvider):
     )
     CURRENCY_KEY = 'Currency'
     PRICE_KEY = 'Price'
+    NAME = _('GPT')
     has_quote_selection = True
 
     def get_headers(self):

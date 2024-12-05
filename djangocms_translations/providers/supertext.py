@@ -77,6 +77,7 @@ class SupertextTranslationProvider(BaseTranslationProvider):
     )
     CURRENCY_KEY = 'Currency'
     PRICE_KEY = 'Price'
+    NAME = _('Supertext')
 
     def get_headers(self):
         return {

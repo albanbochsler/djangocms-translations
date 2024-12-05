@@ -87,6 +87,7 @@ class DeeplProvider(BaseTranslationProvider):
     )
     CURRENCY_KEY = 'Currency'
     PRICE_KEY = 'Price'
+    NAME = _('DeepL')
     has_quote_selection = False
 
     def get_headers(self):

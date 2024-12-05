@@ -13,6 +13,7 @@ class BaseTranslationProvider(object):
 
     CURRENCY_KEY = None
     PRICE_KEY = None
+    NAME = 'Base translation provider'
 
     def __init__(self, request):
         self.request = request

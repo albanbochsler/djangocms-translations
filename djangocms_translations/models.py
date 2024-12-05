@@ -21,7 +21,7 @@ from extended_choices import Choices
 from slugify import slugify
 
 from .conf import TRANSLATIONS_TITLE_EXTENSION, TRANSLATIONS_INLINE_CONF
-from .providers import TRANSLATION_PROVIDERS, GptTranslationProvider, DeeplProvider
+from .providers import TRANSLATION_PROVIDERS, TRANSLATION_PROVIDER_CHOICES
 from .utils import get_plugin_form, get_page_export_data, get_plugin_class, \
     import_plugins_to_content, create_page_content_translation, get_app_export_fields, get_app_export_data, \
     import_plugins_to_app, import_fields_to_model, import_fields_to_app_model
@@ -54,12 +54,6 @@ class TranslationRequest(models.Model):
         ('CANCELLED', 'cancelled', _('Cancelled')),
     )
 
-    PROVIDERS = [
-        # (SupertextTranslationProvider.__name__, _('Supertext')),
-        (GptTranslationProvider.__name__, _('GPT')),
-        (DeeplProvider.__name__, _('DeepL'))
-    ]
-
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     state = models.CharField(choices=STATES, default=STATES.DRAFT, max_length=100)
     date_created = models.DateTimeField(auto_now_add=True)
@@ -68,7 +62,7 @@ class TranslationRequest(models.Model):
     date_imported = models.DateTimeField(blank=True, null=True)
     source_language = models.CharField(max_length=10, choices=settings.LANGUAGES)
     target_language = models.CharField(max_length=10, choices=settings.LANGUAGES)
-    provider_backend = models.CharField(max_length=100, choices=PROVIDERS)
+    provider_backend = models.CharField(max_length=100, choices=TRANSLATION_PROVIDER_CHOICES)
     provider_order_name = models.CharField(max_length=255, blank=True)
     provider_options = models.JSONField(default=dict, blank=True)
     export_content = models.JSONField(default=dict, blank=True)
@@ -632,12 +626,6 @@ class AppTranslationRequest(models.Model):
         ('CANCELLED', 'cancelled', _('Cancelled')),
     )
 
-    PROVIDERS = [
-        # (SupertextTranslationProvider.__name__, _('Supertext')),
-        (GptTranslationProvider.__name__, _('GPT')),
-        (DeeplProvider.__name__, _('DeepL'))
-    ]
-
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     state = models.CharField(choices=STATES, default=STATES.DRAFT, max_length=100)
     date_created = models.DateTimeField(auto_now_add=True)
@@ -646,7 +634,7 @@ class AppTranslationRequest(models.Model):
     date_imported = models.DateTimeField(blank=True, null=True)
     source_language = models.CharField(max_length=10, choices=settings.LANGUAGES)
     target_language = models.CharField(max_length=10, choices=settings.LANGUAGES)
-    provider_backend = models.CharField(max_length=100, choices=PROVIDERS)
+    provider_backend = models.CharField(max_length=100, choices=TRANSLATION_PROVIDER_CHOICES)
     provider_order_name = models.CharField(max_length=255, blank=True)
     provider_options = models.JSONField(default=dict, blank=True)
     export_content = models.JSONField(default=dict, blank=True)
