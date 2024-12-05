@@ -4,7 +4,7 @@ from functools import lru_cache
 from itertools import chain
 
 from cms import api
-from cms.models import Page, CMSPlugin, Placeholder, PlaceholderRelationField, PageContent
+from cms.models import Page, CMSPlugin, Placeholder, PlaceholderRelationField, PageContent, PageUrl
 from cms.plugin_pool import plugin_pool
 from cms.utils.plugins import get_bound_plugins
 from django.apps import apps
@@ -14,16 +14,16 @@ from django.contrib.sites.models import Site
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import BooleanField, IntegerField
-from django.forms import modelform_factory
+from django.forms import modelform_factory, model_to_dict
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language_info
 from djangocms_versioning.constants import DRAFT
+from djangocms_versioning.models import Version
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 from slugify import slugify
 from yurl import URL
-
 from .conf import TRANSLATIONS_CONF, TRANSLATIONS_TITLE_EXTENSION
 from .conf import TRANSLATIONS_INLINE_CONF
 from .exporter import get_placeholder_export_data
@@ -428,30 +428,74 @@ def import_fields_to_app_model(return_fields, target_language):
 def import_fields_to_model(return_fields, language):
     title_conf = TRANSLATIONS_TITLE_EXTENSION
     title_extension_model = apps.get_model(title_conf["app_label"], title_conf["model_name"])
+    from djangocms_translations.models import TranslationRequestItem
+    # sort return_fields so that title is first
+    return_fields = sorted(return_fields, key=lambda x: x["field_name"] == "title", reverse=True)
     for item in return_fields:
         link_object_id = item["link_object_id"]
         field_name = item["field_name"]
-        content = item["content"]
-        content = content.replace('&amp;', '&').replace('&nbsp;', ' ')
+        content = item["content"].replace("&amp;", "&").replace("&nbsp;", " ")
+
+        translation_request_item_pk = item["translation_request_item_pk"]
+        request_item = TranslationRequestItem.objects.get(pk=translation_request_item_pk)
+        user = request_item.translation_request.user
+        source_language = request_item.translation_request.source_language
+
         title_extension = title_extension_model.objects.get(pk=link_object_id)
-        version = get_draft_page_version(title_extension.extended_object.page, language)
-        try:
-            title_extension = title_extension_model.objects.get(extended_object_id=version.content.id)
-        except title_extension_model.DoesNotExist:
-            title_extension = title_extension_model.objects.create(
-                extended_object_id=version.content.id
-            )
-        if field_name == "title":
-            extended_obj = title_extension.extended_object
-            extended_obj.title = content
-            extended_obj.slug = slugify(content)
-            extended_obj.path = extended_obj.page.get_path_for_slug(slugify(content), language)
-            extended_obj.save()
-            extended_obj.page.save()
-        # TODO: Check if this makes sense
-        for key, value in item.items():
+        translations = title_extension.extended_object.page.pagecontent_set(manager="admin_manager")
+
+        # Handle title translation creation if it doesn't exist
+        if not translations.filter(language=language).exists():
+            if field_name == "title":
+                # Create new PageContent and associated URLs
+                for page_url in title_extension.extended_object.page.urls.filter(language=source_language):
+                    new_url_data = model_to_dict(page_url)
+                    new_url_data.update({
+                        "language": language,
+                        "slug": slugify(content),
+                        "path": title_extension.extended_object.page.get_path_for_slug(slugify(content), language),
+                        "page": title_extension.extended_object.page
+                    })
+                    new_url_data.pop("id", None)
+                    PageUrl.objects.with_user(user).create(**new_url_data)
+
+                # Create the new title and associated extension
+                source_title = translations.filter(language=source_language).first()
+                if source_title:
+                    new_title_data = model_to_dict(source_title)
+                    new_title_data.update({
+                        "language": language,
+                        "title": content,
+                        "page": source_title.page
+                    })
+                    new_title_data.pop("id", None)
+                    new_title_obj = PageContent.objects.with_user(user).create(**new_title_data)
+                    new_title_obj.save()
+
+                    # Update page languages
+                    new_title_obj.page.update_languages(
+                        [trans.language for trans in translations.current_content()]
+                    )
+                    new_title_obj.page.save()
+
+                    title_extension_model.objects.create(extended_object=new_title_obj)
+        else:
+            # Update or create title_extension
+            title_translation = translations.filter(language=language).first()
+            if title_translation:
+                title_extension = title_extension_model.objects.filter(extended_object=title_translation).first()
+                if not title_extension:
+                    title_extension = title_extension_model.objects.create(extended_object=title_translation)
+            else:
+                title_extension = None  # Skip if no title translation exists
+
+        # Update fields for the title_extension
+        if title_extension and field_name != "title":
             setattr(title_extension, field_name, content)
-        title_extension.save()
+            title_extension.save()
+
+    title_extension.save()
+
 
 
 def get_draft_page_version(page, target_language):

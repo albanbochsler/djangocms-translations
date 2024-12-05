@@ -204,12 +204,21 @@ class TranslationRequest(models.Model):
                 content_type__model='pagecontent',
                 object_id__in=pagecontent_set.values_list('id', flat=True),
             ).first()
+        # if version is draft use it, otherwise create a new version
+        if version.state == DRAFT:
+            new_version = version
+        else:
+            new_version = version.copy(version.created_by)
 
-        new_version = version.copy(version.created_by)
+
         content = new_version.content
         placeholders = Placeholder.objects.filter(
             object_id=content.id,
         )
+
+        if not placeholders.exists():
+            content.rescan_placeholders()  # Need something to initialize the placeholders
+
         for placeholder in placeholders:
             placeholder.clear(target_language)
 
@@ -231,6 +240,10 @@ class TranslationRequest(models.Model):
 
         id_item_mapping = self.items.in_bulk()
         import_error = False
+
+        # Translate title first so we can hook on the fresh page
+        if return_fields:
+            import_fields_to_model(return_fields, self.target_language)
 
         for translation_request_item_pk, placeholders in import_data.items():
             translation_request_item = id_item_mapping[translation_request_item_pk]
@@ -257,8 +270,7 @@ class TranslationRequest(models.Model):
                 import_state.set_error_message(message)
                 import_error = True
 
-        if return_fields:
-            import_fields_to_model(return_fields, self.target_language)
+
 
         if import_error:
             # FIXME: this or all-or-nothing (atomic)?
