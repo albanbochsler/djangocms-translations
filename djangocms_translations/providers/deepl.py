@@ -335,6 +335,7 @@ class DeeplProvider(BaseTranslationProvider):
             'ReferenceData': request.pk,  # TODO: we should add a secret token here and then recheck when importing.
             'ComponentName': 'djangocms-translations',
             'Provider': 'deepl',
+            'ProviderContext': {'api_key': getattr(settings, 'DEEPL_API_KEY', None)},
             'ComponentVersion': djangocms_translations_version,
             'CallbackUrl': callback_url,
         })
