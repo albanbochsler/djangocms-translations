@@ -460,12 +460,13 @@ def import_fields_to_model(return_fields, language):
                     PageUrl.objects.with_user(user).create(**new_url_data)
 
                 # Create the new title and associated extension
-                source_title = translations.filter(language=source_language).first()
+                source_title = translations.filter(language=source_language).last()
                 if source_title:
                     new_title_data = model_to_dict(source_title)
                     new_title_data.update({
                         "language": language,
                         "title": content,
+                        "template": source_title.template,
                         "page": source_title.page
                     })
                     new_title_data.pop("id", None)
@@ -481,9 +482,9 @@ def import_fields_to_model(return_fields, language):
                     title_extension_model.objects.create(extended_object=new_title_obj)
         else:
             # Update or create title_extension
-            title_translation = translations.filter(language=language).first()
+            title_translation = translations.filter(language=language).last()
             if title_translation:
-                title_extension = title_extension_model.objects.filter(extended_object=title_translation).first()
+                title_extension = title_extension_model.objects.filter(extended_object=title_translation).last()
                 if not title_extension:
                     title_extension = title_extension_model.objects.create(extended_object=title_translation)
             else:
