@@ -16,6 +16,8 @@ __all__ = [
     'TranslateAppBulkMixin',
 ]
 
+from ..conf import DEFAULT_TRANSLATION_PROVIDER
+
 
 class AllReadOnlyFieldsMixin(object):
     actions = None
@@ -150,7 +152,7 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
             user = request.user
             source_lang = request.GET.get('source_language', 'de')
             target_lang = lang_code
-            provider_backend = request.GET.get('provider_backend', settings.DEFAULT_TRANSLATION_PROVIDER)
+            provider_backend = request.GET.get('provider_backend', DEFAULT_TRANSLATION_PROVIDER)
 
             if request.method == 'POST':
                 translation_request = models.AppTranslationRequest.objects.create(

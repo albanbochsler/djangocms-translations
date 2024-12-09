@@ -9,6 +9,8 @@ from cms.forms.fields import PageSelectFormField
 from cms.models import Page
 
 from . import models
+from .conf import DEFAULT_TRANSLATION_PROVIDER, DEFAULT_TRANSLATION_SOURCE_LANGUAGE
+from .providers import TRANSLATION_PROVIDER_CHOICES
 from .utils import get_page_url
 
 
@@ -93,6 +95,9 @@ class CreateTranslationForm(forms.ModelForm):
         self.user = kwargs.pop('user')
         super(CreateTranslationForm, self).__init__(*args, **kwargs)
 
+        if DEFAULT_TRANSLATION_PROVIDER:
+            self.fields['provider_backend'].initial = DEFAULT_TRANSLATION_PROVIDER
+
     def clean(self, *args, **kwargs):
         super(CreateTranslationForm, self).clean(*args, **kwargs)
         if not self.is_valid():
@@ -144,6 +149,12 @@ class TranslateInBulkStep1Form(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
         super(TranslateInBulkStep1Form, self).__init__(*args, **kwargs)
+
+        if DEFAULT_TRANSLATION_PROVIDER:
+            self.fields['provider_backend'].initial = DEFAULT_TRANSLATION_PROVIDER
+
+        if DEFAULT_TRANSLATION_SOURCE_LANGUAGE:
+            self.fields['source_language'].initial = DEFAULT_TRANSLATION_SOURCE_LANGUAGE
 
     def clean(self, *args, **kwargs):
         super(TranslateInBulkStep1Form, self).clean(*args, **kwargs)
