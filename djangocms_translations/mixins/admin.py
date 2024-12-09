@@ -13,7 +13,7 @@ from .. import models
 
 __all__ = [
     'TranslateAppMixin',
-    'AppTranslationRequestAdmin',
+    'TranslateAppBulkMixin',
 ]
 
 
@@ -56,29 +56,29 @@ class TranslateAppMixin(object):
             return translation_request
         return None
 
-    def send_translation_request(self, obj):
-
-        def render_action(url, title):
-            return mark_safe(
-                '<a class="lang-code current active djangocms_translations" href="{url}"><i class="material-icons">translate</i></a>'
-                .format(url=url, title=title)
-            )
-
-        action = render_action(
-            (
-                '{url}?link_model={link_model}&app_label={app_label}&link_object_id={app_id}&source_language={source_language}'
-                .format(url=reverse('admin:create-app-translation-request'), app_label=obj._meta.app_label,
-                        link_model=obj._meta.model_name, app_id=obj.pk,
-                        source_language="de")),
-            # TODO read language from request
-            f"{_('Translate')}",
-        )
-
-        return format_html(
-            '{action}',
-            status="",
-            action=action,
-        )
+    # def send_translation_request(self, obj):
+    #
+    #     def render_action(url, title):
+    #         return mark_safe(
+    #             '<a class="lang-code current active djangocms_translations" href="{url}"><i class="material-icons">translate</i></a>'
+    #             .format(url=url, title=title)
+    #         )
+    #
+    #     action = render_action(
+    #         (
+    #             '{url}?link_model={link_model}&app_label={app_label}&link_object_id={app_id}&source_language={source_language}'
+    #             .format(url=reverse('admin:create-app-translation-request'), app_label=obj._meta.app_label,
+    #                     link_model=obj._meta.model_name, app_id=obj.pk,
+    #                     source_language="de")),
+    #         # TODO read language from request
+    #         f"{_('Translate')}",
+    #     )
+    #
+    #     return format_html(
+    #         '{action}',
+    #         status="",
+    #         action=action,
+    #     )
 
     def translation_request_status(self, obj):
         action = ''
@@ -105,13 +105,13 @@ class TranslateAppMixin(object):
             action=action,
         )
 
-    send_translation_request.short_description = 'Translate'
+    # send_translation_request.short_description = 'Translate'
     translation_request_status.short_description = 'Translation Status'
-    send_translation_request.allow_tags = True
+    # send_translation_request.allow_tags = True
 
     def get_list_display(self, request):
         list_display = super().get_list_display(request)
-        list_display = list(list_display) + ['translation_request_status', 'send_translation_request']
+        list_display = list(list_display) + ['translation_request_status']
 
         return list_display
 
