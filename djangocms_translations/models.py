@@ -50,7 +50,7 @@ class TranslationRequest(models.Model):
         ('IN_TRANSLATION', 'in_translation', _('In translation')),
         ('IMPORT_STARTED', 'import_started', _('Import started')),
         ('IMPORT_FAILED', 'import_failed', _('Import failed')),
-        ('IMPORTED', 'imported', _('Imported')),
+        ('IMPORTED', 'imported', _('Done')),
         ('CANCELLED', 'cancelled', _('Cancelled')),
     )
 
@@ -553,7 +553,7 @@ class TranslationImport(models.Model):
     STATES = Choices(
         ('STARTED', 'started', _('Import started')),
         ('FAILED', 'failed', _('Import failed')),
-        ('IMPORTED', 'imported', _('Imported')),
+        ('IMPORTED', 'imported', _('Done')),
     )
 
     request = models.ForeignKey(TranslationRequest, on_delete=models.CASCADE, related_name='imports')
@@ -669,7 +669,7 @@ class AppTranslationRequest(models.Model):
         ('IN_TRANSLATION', 'in_translation', _('In translation')),
         ('IMPORT_STARTED', 'import_started', _('Import started')),
         ('IMPORT_FAILED', 'import_failed', _('Import failed')),
-        ('IMPORTED', 'imported', _('Imported')),
+        ('IMPORTED', 'imported', _('Done')),
         ('CANCELLED', 'cancelled', _('Cancelled')),
     )
 
@@ -917,7 +917,7 @@ class AppTranslationImport(models.Model):
     STATES = Choices(
         ('STARTED', 'started', _('Import started')),
         ('FAILED', 'failed', _('Import failed')),
-        ('IMPORTED', 'imported', _('Imported')),
+        ('IMPORTED', 'imported', _('Done')),
     )
 
     request = models.ForeignKey(AppTranslationRequest, on_delete=models.CASCADE, related_name='imports')
