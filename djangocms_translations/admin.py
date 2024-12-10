@@ -1,11 +1,14 @@
 import json
+from collections import defaultdict
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.conf import settings
+from django.contrib.admin.utils import unquote
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Count, ManyToOneRel, Prefetch
 from django.http import Http404, HttpResponseNotFound
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.response import TemplateResponse
 from django.urls import reverse, re_path, path
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
@@ -21,10 +24,11 @@ from cms.plugin_pool import plugin_pool
 from . import models, views
 from .forms import (
     TranslateInBulkStep1Form, TranslateInBulkStep2Form,
-    TranslateInBulkStep3Form, TranslationDirectiveAdminInlineForm
+    TranslateInBulkStep3Form, TranslationDirectiveAdminInlineForm, TranslationGlossarAdminInlineForm
 )
 from .mixins.admin import AllReadOnlyFieldsMixin
-from .models import TranslationRequest, TranslationDirective, AppTranslationRequest
+from .models import TranslationRequest, TranslationDirective, AppTranslationRequest, TranslationGlossarInline
+from .providers.deepl import create_deepl_glossary
 from .utils import (
     get_language_name, get_page_url, get_plugin_form, pretty_json,
 )
@@ -600,13 +604,59 @@ class TranslationDirectiveAdminInline(admin.TabularInline):
     max_num = len(settings.LANGUAGES)
 
 
+
+class TranslationGlossarAdminInline(admin.TabularInline):
+    list_display = ("title", "creation_time", "glossar_csv")
+    model = models.TranslationGlossarInline
+    extra = 0
+    classes = ['collapse']
+    form = TranslationGlossarAdminInlineForm
+    can_delete = False
+    max_num = len(settings.LANGUAGES)
+    readonly_fields = ('creation_time', 'glossary_id')
+
+
+
+
 @admin.register(TranslationDirective)
 class TranslationDirectiveAdmin(admin.ModelAdmin):
     list_display = ("title", "master_language")
     form = TranslationDirectiveAdminForm
     inlines = [
         TranslationDirectiveAdminInline,
+        TranslationGlossarAdminInline,
     ]
+
+
+    def get_urls(self):
+        urlpatterns = super().get_urls()
+        custom_urlpatterns = [
+            path(
+                '<int:pk>/upload-glossary/',
+                 self.admin_site.admin_view(self.upload_glossary_view),
+                    name='upload-glossary'
+                 ),
+        ] + urlpatterns
+        return custom_urlpatterns
+
+
+
+    def upload_glossary_view(self, request, pk):
+        obj = self.get_object(request, pk)
+        glossaries = obj.translations_glossar.all()
+
+        for glossar_model in glossaries:
+            file_string = glossar_model.glossar_csv.name
+            name = file_string.replace(".csv", "").replace("/", "_").replace(" ", "_")
+
+            response = create_deepl_glossary(glossar_model.master.master_language, glossar_model.language, glossar_model.glossar_csv.file.read().decode("utf-8"), name)
+            glossar_model.title = name
+            glossar_model.glossary_id = response['glossary_id']
+            glossar_model.creation_time = response['creation_time']
+            glossar_model.save()
+            messages.info(request, f"Glossary {name} uploaded successfully")
+
+        return redirect('admin:djangocms_translations_translationdirective_changelist')
 
 
 class AppTranslationRequestItemInline(AllReadOnlyFieldsMixin, admin.TabularInline):

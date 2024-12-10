@@ -1,0 +1,13 @@
+{% extends "admin/change_form.html" %}
+
+
+{% block object-tools-items %}
+    </style>
+
+    <li>
+        <a href="{% url 'admin:upload-glossary' original.pk  %}">
+            Upload Glossaries
+        </a>
+    </li>
+    {{ block.super }}
+{% endblock %}

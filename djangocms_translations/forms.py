@@ -305,6 +305,24 @@ class TranslationDirectiveAdminInlineForm(forms.ModelForm):
         )
 
 
+
+class TranslationGlossarAdminInlineForm(forms.ModelForm):
+    class Meta:
+        model = models.TranslationGlossarInline
+        fields = '__all__'
+        # widgets = {
+        #     'directive_item': widgets.Textarea(attrs={'rows': 4, 'cols': 40}),
+        # }
+
+    def __init__(self, *args, **kwargs):
+        super(TranslationGlossarAdminInlineForm, self).__init__(*args, **kwargs)
+        self.fields['language'] = forms.CharField(
+            label='language',
+            widget=forms.Select(choices=settings.LANGUAGES),
+            required=False,
+        )
+
+
 class CreateAppTranslationForm(forms.ModelForm):
     app_label = forms.CharField()  # better to use a ModelChoiceField with apphooks
     link_model = forms.CharField()  # better to use a ModelChoiceField with apphooks

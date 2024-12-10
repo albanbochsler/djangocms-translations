@@ -112,6 +112,7 @@ class DeeplProvider(BaseTranslationProvider):
         from ..models import TranslationDirective
 
         directives_dict = {}
+        glossary_list = []
         for directive in TranslationDirective.objects.all():
             directives_dict.setdefault(directive.pk, {})
             directives_dict[directive.pk]['masterLanguage'] = LANGUAGE_MAPPING.get(directive.master_language)
@@ -120,12 +121,15 @@ class DeeplProvider(BaseTranslationProvider):
                     'directive_item': translation.directive_item,
                 }
 
+            for glossary in directive.translations_glossar.all():
+                glossary_list.append({glossary.language: glossary.glossary_id})
         x_data = {
             'ContentType': 'text/html',
             'SourceLang': LANGUAGE_MAPPING.get(self.request.source_language, self.request.source_language),
             'TargetLanguages': [LANGUAGE_MAPPING.get(self.request.target_language, self.request.target_language)],
             "Currency": "CHF",
             "Directives": directives_dict,
+            "Glossaries": glossary_list
         }
         groups = []
         fields_by_plugin = {}
@@ -386,3 +390,34 @@ class DeeplProvider(BaseTranslationProvider):
             for k, v in option_map.items()
             if kwargs.get(k) is not None
         }
+
+
+base_url = "https://api.deepl.com/v2"
+DEEPL_API_KEY = getattr(settings, 'DEEPL_API_KEY', None)
+
+headers = {
+    "Authorization": f"DeepL-Auth-Key {DEEPL_API_KEY}",
+}
+if settings.DEBUG:
+    base_url = "https://api-free.deepl.com/v2"
+
+def create_deepl_glossary(source_language, target_language, glossar_csv, glossary_name):
+    response = requests.post(
+        f"{base_url}/glossaries",
+        headers=headers,
+        data={
+            "name": glossary_name,
+            "source_lang": source_language,
+            "target_lang": target_language,
+            "entries_format": "csv",
+            "entries": glossar_csv,
+        },
+    )
+
+    if response.status_code == 201:
+        glossary = response.json()
+        return glossary
+    else:
+        print(f"Error uploading glossary: {response.status_code}")
+        print(response.json())
+        return response.json()

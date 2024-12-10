@@ -20,7 +20,7 @@ from djangocms_versioning.constants import PUBLISHED, DRAFT
 from extended_choices import Choices
 from slugify import slugify
 
-from .conf import TRANSLATIONS_TITLE_EXTENSION, TRANSLATIONS_INLINE_CONF
+from .conf import TRANSLATIONS_TITLE_EXTENSION, TRANSLATIONS_INLINE_CONF, DEFAULT_TRANSLATION_PROVIDER
 from .providers import TRANSLATION_PROVIDERS, TRANSLATION_PROVIDER_CHOICES
 from .utils import get_plugin_form, get_page_export_data, get_plugin_class, \
     import_plugins_to_content, create_page_content_translation, get_app_export_fields, get_app_export_data, \
@@ -585,6 +585,7 @@ class TranslationDirective(models.Model):
     def save(self, *args, **kwargs):
         # add TranslationDirectiveInline for each language, starting with master language
         super().save(*args, **kwargs)
+
         for language, _ in settings.LANGUAGES:
             if language == self.master_language:
                 TranslationDirectiveInline.objects.get_or_create(
@@ -592,7 +593,7 @@ class TranslationDirective(models.Model):
                     master=self,
                     language=language
                 )
-            else:
+            elif not language == self.master_language and not DEFAULT_TRANSLATION_PROVIDER == 'DeeplProvider':
                 TranslationDirectiveInline.objects.get_or_create(
                     title="{} - {}".format(self.title, language),
                     master=self,
@@ -623,6 +624,40 @@ class TranslationDirectiveInline(models.Model):
     class Meta:
         ordering = ['master__master_language']
 
+
+class TranslationGlossarInline(models.Model):
+    # title = models.CharField(max_length=255, editable=False, null=True)
+    master = models.ForeignKey(
+        TranslationDirective,
+        on_delete=models.CASCADE,
+        related_name='translations_glossar',
+        null=True
+    )
+    language = models.CharField(
+        _("target language"),
+        max_length=10,
+        editable=True,
+        # choices=settings.LANGUAGES,
+        # default=settings.LANGUAGES[0][0],
+    )
+
+    title = models.CharField(max_length=255, editable=False, null=True)
+    glossary_id = models.CharField(max_length=255, editable=False, null=True)
+    creation_time = models.DateTimeField(editable=False, null=True)
+    glossar_csv = models.FileField(upload_to='glossar/', blank=True, null=True)
+
+    class Meta:
+        ordering = ['master__master_language']
+
+    def __str__(self):
+        return self.title if self.title else str(self.pk)
+
+
+    def clean_fields(self, exclude=None):
+        if self.glossar_csv:
+            if not self.glossar_csv.name.endswith('.csv'):
+                raise ValidationError('Please upload a valid csv file')
+        return super(TranslationGlossarInline, self).clean_fields(exclude)
 
 class AppTranslationRequest(models.Model):
     STATES = Choices(
