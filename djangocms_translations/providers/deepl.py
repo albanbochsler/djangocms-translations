@@ -112,7 +112,7 @@ class DeeplProvider(BaseTranslationProvider):
         from ..models import TranslationDirective
 
         directives_dict = {}
-        glossary_list = []
+        glossary_obj = {}
         for directive in TranslationDirective.objects.all():
             directives_dict.setdefault(directive.pk, {})
             directives_dict[directive.pk]['masterLanguage'] = LANGUAGE_MAPPING.get(directive.master_language)
@@ -122,14 +122,15 @@ class DeeplProvider(BaseTranslationProvider):
                 }
 
             for glossary in directive.translations_glossar.all():
-                glossary_list.append({glossary.language: glossary.glossary_id})
+                glossary_obj.update({glossary.language: glossary.glossary_id})
+
         x_data = {
             'ContentType': 'text/html',
             'SourceLang': LANGUAGE_MAPPING.get(self.request.source_language, self.request.source_language),
             'TargetLanguages': [LANGUAGE_MAPPING.get(self.request.target_language, self.request.target_language)],
             "Currency": "CHF",
             "Directives": directives_dict,
-            "Glossaries": glossary_list
+            "Glossaries": glossary_obj
         }
         groups = []
         fields_by_plugin = {}
