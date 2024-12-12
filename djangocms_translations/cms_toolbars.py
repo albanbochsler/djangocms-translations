@@ -48,15 +48,15 @@ class TranslationsToolbar(CMSToolbar):
 
         overview_menu.add_modal_item("Pages", url=overview_url)
         overview_menu.add_modal_item("Apps", url=overview_url_app)
-        if self.app_path == "cms":
-            translate_menu = menu.get_or_create_menu(
-                'djangocms_translations-translate',
-                _('Translate this page'),
-                position=1,
-            )
-            for language_data in all_languages:
-                code = language_data[0]
-                if code != current_language:
-                    name = get_language_name(code)
-                    sub_url = '{}&target_language={}'.format(base_url, code)
-                    translate_menu.add_modal_item(_('to {}'.format(name)), url=sub_url)
+
+        translate_menu = menu.get_or_create_menu(
+            'djangocms_translations-translate',
+            _('Translate this page'),
+            position=1,
+        )
+        for language_data in all_languages:
+            code = language_data[0]
+            if code != current_language:
+                name = get_language_name(code)
+                sub_url = '{}&target_language={}'.format(base_url, code)
+                translate_menu.add_modal_item(_('to {}'.format(name)), url=sub_url)
