@@ -365,6 +365,12 @@ def get_app_inline_fields(obj, app_label, language):
 
 def import_plugins_to_app(placeholders, obj, language):
     old_placeholders = {}
+    try:
+        for placeholder in obj.get_placeholders():
+            placeholder.clear(language=language)
+    except Exception as e:
+        print("Error: ", e, obj)
+        pass
 
     for field in obj._meta.get_fields():
         if type(field) == PlaceholderRelationField:
