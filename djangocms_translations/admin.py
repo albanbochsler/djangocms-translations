@@ -606,14 +606,14 @@ class TranslationDirectiveAdminInline(admin.TabularInline):
 
 
 class TranslationGlossarAdminInline(admin.TabularInline):
-    list_display = ("title", "creation_time", "glossar_csv")
+    list_display = ("title", "creation_time", "glossar_csv", "entries")
     model = models.TranslationGlossarInline
     extra = 0
     classes = ['collapse']
     form = TranslationGlossarAdminInlineForm
     can_delete = False
     max_num = len(settings.LANGUAGES)
-    readonly_fields = ('creation_time', 'glossary_id')
+    readonly_fields = ('creation_time', 'glossary_id', "entries")
 
 
 
@@ -651,6 +651,7 @@ class TranslationDirectiveAdmin(admin.ModelAdmin):
 
             response = create_deepl_glossary(glossar_model.master.master_language, glossar_model.language, glossar_model.glossar_csv.file.read().decode("utf-8"), name)
             glossar_model.title = name
+            glossar_model.entries = response['entry_count']
             glossar_model.glossary_id = response['glossary_id']
             glossar_model.creation_time = response['creation_time']
             glossar_model.save()

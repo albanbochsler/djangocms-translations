@@ -645,6 +645,7 @@ class TranslationGlossarInline(models.Model):
     glossary_id = models.CharField(max_length=255, editable=False, null=True)
     creation_time = models.DateTimeField(editable=False, null=True)
     glossar_csv = models.FileField(upload_to='glossar/', blank=True, null=True)
+    entries  = models.CharField(max_length=255, editable=False, null=True)
 
     class Meta:
         ordering = ['master__master_language']
