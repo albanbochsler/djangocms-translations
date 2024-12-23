@@ -278,13 +278,13 @@ def _object_version_data_hook(data, for_page=False):
     return data
 
 
-def create_page_content_translation(page_content, language):
+def create_page_content_translation(page_content, user, language):
     page = page_content.page
-    try:
-        user = User.objects.get(username=page_content.created_by)
-    except User.DoesNotExist:
-        # Just pick any admin user
-        user = User.objects.filter(is_superuser=True).first()
+    # try:
+    #     user = user
+    # except User.DoesNotExist:
+    #     # Just pick any admin user
+    #     user = User.objects.filter(is_superuser=True).first()
     title_kwargs = {
         "page": page,
         "language": language,

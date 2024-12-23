@@ -175,11 +175,18 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
                 translation_request.set_content_from_app()
                 if translation_request.provider.has_quote_selection:
                     translation_request.get_quote_from_provider()
-                    translation_request.get_quote_from_provider()
+                    # translation_request.get_quote_from_provider()
                 else:
                     translation_request.provider.save_export_data()
                     translation_request.set_status(models.AppTranslationRequest.STATES.READY_FOR_SUBMISSION)
                     translation_request.submit_request()
+                    try:
+                        return reverse('admin:{}_{}_{}'.format(models.AppTranslationRequestItem.link_model,
+                                                               models.AppTranslationRequestItem.link_model,
+                                                               'changelist'))
+                    except Exception as e:
+                        return reverse('admin:djangocms_translations_apptranslationrequest_changelist')
+
                 return redirect('admin:djangocms_translations_apptranslationrequest_changelist')
 
         def action_wrapper(modeladmin, request, queryset):

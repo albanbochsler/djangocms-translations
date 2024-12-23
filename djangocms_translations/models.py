@@ -171,7 +171,7 @@ class TranslationRequest(models.Model):
         # on success, update the requests status as well
         self.order.save(update_fields=('state',))
 
-    def get_new_version(self, page, source_language, target_language):
+    def get_new_version(self, page, user, source_language, target_language):
         from djangocms_versioning.models import Version
 
         # Try to get the published page contents or if not existing the drafts. object.filter automatically gets
@@ -185,7 +185,7 @@ class TranslationRequest(models.Model):
             page_content = page.pagecontent_set.filter(language=source_language).last()
             if page_content:
                 # creates page content and automatically a version
-                if not create_page_content_translation(page_content, target_language):
+                if not create_page_content_translation(page_content, user, target_language):
                     return None
             content = PageContent.admin_manager.get(page=page, language=target_language)
             version = Version.objects.get(
@@ -203,6 +203,8 @@ class TranslationRequest(models.Model):
             new_version = version
         else:
             new_version = version.copy(version.created_by)
+            new_version.created_by = user
+            new_version.save()
 
 
         content = new_version.content
@@ -241,8 +243,9 @@ class TranslationRequest(models.Model):
 
         for translation_request_item_pk, placeholders in import_data.items():
             translation_request_item = id_item_mapping[translation_request_item_pk]
+            user = translation_request_item.translation_request.user
             version = self.get_new_version(
-                translation_request_item.target_cms_page, self.source_language, self.target_language
+                translation_request_item.target_cms_page, user, self.source_language, self.target_language
             )
             if not version:
                 message = _("Page content couldn't be created")

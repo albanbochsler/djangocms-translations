@@ -322,8 +322,6 @@ class GptTranslationProvider(BaseTranslationProvider):
             json=data,
         )
 
-        print("response post", response.json())
-
         return response
 
     def send_request(self, is_app=False):
