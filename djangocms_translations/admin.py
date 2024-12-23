@@ -650,6 +650,11 @@ class TranslationDirectiveAdmin(admin.ModelAdmin):
             name = file_string.replace(".csv", "").replace("/", "_").replace(" ", "_")
 
             response = create_deepl_glossary(glossar_model.master.master_language, glossar_model.language, glossar_model.glossar_csv.file.read().decode("utf-8"), name)
+
+            if not "glossary_id" in response:
+                messages.error(request, f"{response['message']}: {response['detail']}")
+                return redirect('admin:djangocms_translations_translationdirective_change', object_id=pk)
+
             glossar_model.title = name
             glossar_model.entries = response['entry_count']
             glossar_model.glossary_id = response['glossary_id']
