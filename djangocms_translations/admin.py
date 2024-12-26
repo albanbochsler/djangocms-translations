@@ -600,7 +600,7 @@ class TranslationDirectiveAdminInline(admin.TabularInline):
     extra = 0
     classes = ['collapse']
     form = TranslationDirectiveAdminInlineForm
-    can_delete = False
+    can_delete = True
     max_num = len(settings.LANGUAGES)
 
 
@@ -611,7 +611,7 @@ class TranslationGlossarAdminInline(admin.TabularInline):
     extra = 0
     classes = ['collapse']
     form = TranslationGlossarAdminInlineForm
-    can_delete = False
+    can_delete = True
     max_num = len(settings.LANGUAGES)
     readonly_fields = ('creation_time', 'glossary_id', "entries")
 
