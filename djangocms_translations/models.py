@@ -238,6 +238,9 @@ class TranslationRequest(models.Model):
         import_error = False
 
 
+        if return_fields:
+            import_fields_to_model(return_fields, self.target_language)
+
         for translation_request_item_pk, placeholders in import_data.items():
             translation_request_item = id_item_mapping[translation_request_item_pk]
             user = translation_request_item.translation_request.user
@@ -264,8 +267,6 @@ class TranslationRequest(models.Model):
                 import_state.set_error_message(message)
                 import_error = True
 
-        if return_fields:
-            import_fields_to_model(return_fields, self.target_language)
 
 
         if import_error:
