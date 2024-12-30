@@ -244,7 +244,13 @@ def process_app_provider_callback_view(request, pk):
     trans_request = get_object_or_404(requests, pk=pk)
     # convert request body to dict
     request_body = json.loads(request.body)
-    success = trans_request.import_response(request_body)
+    try:
+        success = trans_request.import_response(request_body)
+    except Exception as e:
+        print("error", e)
+        trans_request.set_status(models.AppTranslationRequest.STATES.IMPORT_FAILED)
+        return JsonResponse({'success': False})
+
     return JsonResponse({'success': success})
 
 
