@@ -247,7 +247,7 @@ def process_app_provider_callback_view(request, pk):
     try:
         success = trans_request.import_response(request_body)
     except Exception as e:
-        print("error", e)
+        print("error", e, "trans_request: ", trans_request, "pk :", pk)
         trans_request.set_status(models.AppTranslationRequest.STATES.IMPORT_FAILED)
         return JsonResponse({'success': False})
 

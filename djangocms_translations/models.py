@@ -831,10 +831,31 @@ class AppTranslationRequest(models.Model):
                 logger.exception(message)
                 import_state.set_error_message(message)
                 import_error = True
+            except KeyError as e:
+                print("import error", e, obj, obj_model, link_object_id, model_label, app_label, translation_request_item_pk)
+                # self._set_import_archive()
+                try:
+                    from cms.models import CMSPlugin
+                    plugin = CMSPlugin.objects.get(pk=e.args[0])
+                    message = _('Failed to import plugins to "{}". \nCorrupt plugin found: "{}"').format(obj, plugin.plugin_type)
+                    child_positions = []
+                    position = plugin.position
+                    for child in plugin.get_children():
+                        child_positions.append(child.position)
 
-        if import_error:
-            # FIXME: this or all-or-nothing (atomic)?
-            return self.set_status(self.STATES.IMPORT_FAILED)
+                    message += "\nCheck position of the plugin and its children in the structure view: \nPlugin position: {} \nChild positions: {}".format(position, child_positions)
+                    message += "\nHint: any child with lower position than the parent needs to replaced manually. Try placing it at the end of the list."
+                    print("message", message)
+                except Exception as ex:
+                    print("ex", ex)
+                    message = _('Failed to import plugins to "{}".').format(obj)
+                logger.exception(message)
+                import_state.set_error_message(message)
+                import_error = True
+
+            if import_error:
+                # FIXME: this or all-or-nothing (atomic)?
+                return self.set_status(self.STATES.IMPORT_FAILED)
 
         self.set_status(self.STATES.IMPORTED, commit=False)
         self.date_imported = timezone.now()
