@@ -43,6 +43,10 @@ class TranslateAppMixin(object):
 
     # actions = ["translate_in_bulk"]
 
+    def __init__(self, *args, **kwargs):
+        super(TranslateAppMixin, self).__init__(*args, **kwargs)
+        self._cached_translation_requests = {}
+
     @property
     def media(self):
         return super().media + widgets.Media(
@@ -50,13 +54,24 @@ class TranslateAppMixin(object):
         )
 
     def get_translation_request_items(self, obj):
-        items = models.AppTranslationRequestItem.objects.all()
-        request_items = items.filter(link_object_id=obj.pk, link_model=obj._meta.model_name,
-                                     app_label=obj._meta.app_label)
-        if request_items:
-            translation_request = request_items.order_by("-id").first().translation_request
-            return translation_request
-        return None
+        cache_key = f"{obj._meta.app_label}_{obj._meta.model_name}_{obj.pk}"
+
+        if cache_key not in self._cached_translation_requests:
+            request_item = models.AppTranslationRequestItem.objects.filter(
+                link_object_id=obj.pk,
+                link_model=obj._meta.model_name,
+                app_label=obj._meta.app_label
+            ).select_related('translation_request').order_by('-id').first()
+
+            self._cached_translation_requests[cache_key] = request_item.translation_request if request_item else None
+
+        return self._cached_translation_requests[cache_key]
+
+    def get_queryset(self, request):
+        queryset = super(TranslateAppMixin, self).get_queryset(request)
+        # Clear the cache when getting a new queryset
+        self._cached_translation_requests = {}
+        return queryset
 
     # def send_translation_request(self, obj):
     #
