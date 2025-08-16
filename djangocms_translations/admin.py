@@ -54,8 +54,8 @@ class TranslationRequestItemInline(AllReadOnlyFieldsMixin, admin.TabularInline):
         queryset = super(TranslationRequestItemInline, self).get_queryset(request)
         return queryset.select_related(
             'translation_request',
-            'source_cms_page__node__site',
-            'target_cms_page__node__site',
+            'source_cms_page__site',
+            'target_cms_page__site',
         )
 
     def _pretty_page_display(self, page, language):

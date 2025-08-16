@@ -18,19 +18,19 @@ def _get_bulk_request_eligible_pages(source_language, target_language):
     base_qs = (
         Page.objects
         .all()
-        .select_related('node__parent')
-        .filter(node__site=settings.SITE_ID, pagecontent_set__language__in=[source_language, target_language])
-        .order_by('node__path')
+        .select_related('parent')
+        .filter(site=settings.SITE_ID, pagecontent_set__language__in=[source_language, target_language])
+        .order_by('path')
         .distinct()
     )
     ids_by_path = {}
     for page in base_qs.iterator():
-        parent_node = page.node.parent
-        if parent_node:
-            if parent_node.path in ids_by_path:
-                ids_by_path[page.node.path] = page.pk
+        parent = page.parent
+        if parent:
+            if parent.path in ids_by_path:
+                ids_by_path[page.path] = page.pk
         else:
-            ids_by_path[page.node.path] = page.pk
+            ids_by_path[page.path] = page.pk
     return base_qs.filter(pk__in=ids_by_path.values())
 
 
@@ -48,8 +48,8 @@ class PageTreeMultipleChoiceField(forms.ModelMultipleChoiceField):
             '<a class="select-children">{button_label}</a>'
             '<a href="{source_link}" target="_blank">{source_language}</a>'
             '<a href="{target_link}" target="_blank">{target_language}</a>',
-            path=obj.node.path,
-            indent=mark_safe('&nbsp;' * (obj.node.depth - 1) * self.INDENT),
+            path=obj.path,
+            indent=mark_safe('&nbsp;' * (obj.depth - 1) * self.INDENT),
             title=obj.get_title(self.source_language),
             button_label=_('Select with children'),
             source_link=source_link,
@@ -190,8 +190,8 @@ class TranslateInBulkStep2Form(forms.Form):
         pages_field.target_language = self.translation_request.target_language
         pages_field.queryset = (
             _get_bulk_request_eligible_pages(pages_field.source_language, pages_field.target_language)
-            .order_by('node__path')
-            .select_related('node__site')
+            .order_by('path')
+            .select_related('site')
         )
 
     def save(self, *args, **kwargs):

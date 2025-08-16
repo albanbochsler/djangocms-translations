@@ -74,7 +74,7 @@ def import_from_archive(request, pk):
         TranslationRequest
         .objects
         .filter(state=TranslationRequest.STATES.IMPORT_FAILED)
-        .select_related('target_cms_page__node__site')
+        .select_related('target_cms_page__site')
     )
     trans_request = get_object_or_404(requests, pk=pk)
 
