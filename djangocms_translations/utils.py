@@ -3,6 +3,69 @@ from collections import OrderedDict
 from functools import lru_cache
 from itertools import chain
 
+
+class ChoiceEntry:
+    """Represents a single choice entry with value and display."""
+    def __init__(self, constant, value, display):
+        self.constant = constant
+        self.value = value
+        self.display = display
+
+    def __str__(self):
+        return str(self.value)
+
+
+class Choices:
+    """
+    Drop-in replacement for extended_choices.Choices.
+
+    Usage:
+        STATES = Choices(
+            ('DRAFT', 'draft', _('Draft')),
+            ('OPEN', 'open', _('Open')),
+        )
+
+        # Access value by constant name
+        STATES.DRAFT  # returns 'draft'
+
+        # Get display for a value
+        STATES.for_value('draft').display  # returns 'Draft'
+
+        # Check if value is valid
+        'draft' in STATES.values
+
+        # Use as Django field choices
+        state = models.CharField(choices=STATES, default=STATES.DRAFT)
+    """
+
+    def __init__(self, *choices):
+        self._choices = []
+        self._by_constant = {}
+        self._by_value = {}
+
+        for choice in choices:
+            constant, value, display = choice
+            entry = ChoiceEntry(constant, value, display)
+            self._choices.append(entry)
+            self._by_constant[constant] = entry
+            self._by_value[value] = entry
+            # Set attribute for direct access (e.g., STATES.DRAFT)
+            setattr(self, constant, value)
+
+    def __iter__(self):
+        """Iterate as Django-compatible choices: (value, display) tuples."""
+        for entry in self._choices:
+            yield (entry.value, entry.display)
+
+    def for_value(self, value):
+        """Get the ChoiceEntry for a given value."""
+        return self._by_value.get(value)
+
+    @property
+    def values(self):
+        """Return all valid values."""
+        return list(self._by_value.keys())
+
 from cms import api
 from cms.models import Page, CMSPlugin, Placeholder, PlaceholderRelationField, PageContent, PageUrl
 from cms.plugin_pool import plugin_pool

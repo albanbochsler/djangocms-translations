@@ -17,7 +17,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from djangocms_text_ckeditor.fields import HTMLField
 from djangocms_versioning.constants import PUBLISHED, DRAFT
-from extended_choices import Choices
+from .utils import Choices
 from slugify import slugify
 
 from .conf import TRANSLATIONS_TITLE_EXTENSION, TRANSLATIONS_INLINE_CONF, DEFAULT_TRANSLATION_PROVIDER

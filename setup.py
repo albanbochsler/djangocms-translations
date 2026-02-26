@@ -4,11 +4,10 @@ from djangocms_translations import __version__
 
 
 REQUIREMENTS = [
-    'django-cms>=4.1',
+    'django-cms>=5.0.5',
     'django-appconf>=1.0,<2',
     'djangocms-versioning>=2.1.0',
     'djangocms-text-ckeditor>=5.1.2',
-    'django-extended-choices',
     'pygments',
     'yurl',
     'requests',
@@ -28,8 +27,10 @@ CLASSIFIERS = [
     'Programming Language :: Python :: 3.11',
     'Framework :: Django',
     'Framework :: Django :: 4.2',
+    'Framework :: Django :: 5.2',
     'Framework :: Django CMS',
     'Framework :: Django CMS :: 4.1',
+    'Framework :: Django CMS :: 5.0',
     'Topic :: Internet :: WWW/HTTP',
     'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     'Topic :: Software Development',

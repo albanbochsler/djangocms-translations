@@ -16,7 +16,6 @@ from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
-from cms.admin.placeholderadmin import PlaceholderAdminMixin
 from cms.models import CMSPlugin
 from cms.operations import ADD_PLUGIN
 from cms.plugin_pool import plugin_pool
@@ -508,7 +507,7 @@ class TranslationRequestAdmin(AllReadOnlyFieldsMixin, admin.ModelAdmin):
 
 
 @admin.register(models.ArchivedPlaceholder)
-class ArchivedPlaceholderAdmin(PlaceholderAdminMixin, admin.ModelAdmin):
+class ArchivedPlaceholderAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False

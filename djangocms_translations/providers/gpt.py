@@ -9,7 +9,7 @@ from djangocms_text_ckeditor.utils import plugin_to_tag, _plugin_tags_to_html, p
 
 from ..conf import TRANSLATIONS_USE_STAGING, LANGUAGE_MAPPING
 from ..utils import get_plugin_class, _object_version_data_hook
-from extended_choices import Choices
+from ..utils import Choices
 from yurl import URL
 
 from .. import __version__ as djangocms_translations_version

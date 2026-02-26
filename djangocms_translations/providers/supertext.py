@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 import requests
-from extended_choices import Choices
+from ..utils import Choices
 
 from .. import __version__ as djangocms_translations_version
 from ..utils import (

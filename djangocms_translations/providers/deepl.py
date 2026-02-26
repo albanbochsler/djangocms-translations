@@ -7,7 +7,7 @@ from django.contrib.sites.models import Site
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from djangocms_text_ckeditor.utils import plugin_to_tag, _plugin_tags_to_html, plugin_tags_to_id_list
-from extended_choices import Choices
+from ..utils import Choices
 from yurl import URL
 
 from .base import BaseTranslationProvider, ProviderException
