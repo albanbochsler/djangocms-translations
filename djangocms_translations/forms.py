@@ -77,6 +77,12 @@ class CreateTranslationForm(forms.ModelForm):
         required=False,
         initial=True,
     )
+    additional_info = forms.CharField(
+        label=_('Additional information'),
+        widget=forms.Textarea(attrs={'rows': 3}),
+        required=False,
+        help_text=_('Additional instructions for the translation provider.'),
+    )
 
     class Meta:
         model = models.TranslationRequest
@@ -89,6 +95,7 @@ class CreateTranslationForm(forms.ModelForm):
             'translate_content',
             'translate_title',
             'translate_seo',
+            'additional_info',
         ]
 
     def __init__(self, *args, **kwargs):

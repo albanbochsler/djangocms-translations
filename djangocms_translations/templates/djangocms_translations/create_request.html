@@ -13,13 +13,27 @@
 
 	    <fieldset class="frm-horizontal">
 			{% for field in form.visible_fields %}
-				<p>
+				<p {% if field.name == 'additional_info' %}id="additional-info-row" style="display:none"{% endif %}>
                     {{ field.label_tag }}
                     {{ field }}
+                    {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
                     {{ field.errors }}
                 </p>
 			{% endfor %}
 	    </fieldset>
         <input type="submit" value="Submit" />
 	</form>
+	<script>
+		(function() {
+			var providerField = document.getElementById('id_provider_backend');
+			var additionalInfoRow = document.getElementById('additional-info-row');
+			if (!providerField || !additionalInfoRow) return;
+
+			function toggle() {
+				additionalInfoRow.style.display = providerField.value === 'TranslinguaProvider' ? '' : 'none';
+			}
+			providerField.addEventListener('change', toggle);
+			toggle();
+		})();
+	</script>
 {% endblock content %}

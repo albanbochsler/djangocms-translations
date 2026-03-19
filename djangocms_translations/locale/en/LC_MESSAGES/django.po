@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-03-15 09:34+0100\n"
+"POT-Creation-Date: 2025-10-04 17:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,27 +34,27 @@ msgstr ""
 msgid "Target CMS page"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 msgid "Provider order ID"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 msgid "Provider options"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 msgid "Request content"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 msgid "Response content"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 msgid "Price"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 msgid "Additional info"
 msgstr ""
 
@@ -66,7 +66,7 @@ msgstr ""
 msgid "Target language"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 msgid "Export content"
 msgstr ""
 
@@ -75,7 +75,7 @@ msgstr ""
 msgid "Pages sent"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 msgid "Refresh"
 msgstr ""
 
@@ -87,7 +87,7 @@ msgstr ""
 msgid "Log"
 msgstr ""
 
-#: djangocms_translations/admin.py djangocms_translations/mixins/admin.py
+#: djangocms_translations/admin.py
 #: djangocms_translations/templates/djangocms_translations/log.html
 #: djangocms_translations/templates/djangocms_translations/status_detail.html
 msgid "Status"
@@ -114,6 +114,14 @@ msgstr ""
 msgid "Plugin not found"
 msgstr ""
 
+#: djangocms_translations/admin.py
+msgid "Export fields"
+msgstr ""
+
+#: djangocms_translations/admin.py
+msgid "Task status"
+msgstr ""
+
 #: djangocms_translations/apps.py
 msgid "django CMS Translations"
 msgstr ""
@@ -131,11 +139,11 @@ msgid "Translate in bulk"
 msgstr ""
 
 #: djangocms_translations/cms_toolbars.py
-msgid "Translate this page"
+msgid "Overview"
 msgstr ""
 
 #: djangocms_translations/cms_toolbars.py
-msgid "Overview"
+msgid "Translate this page"
 msgstr ""
 
 #: djangocms_translations/cms_toolbars.py
@@ -147,6 +155,18 @@ msgid "Select with children"
 msgstr ""
 
 #: djangocms_translations/forms.py
+msgid "Translate content"
+msgstr ""
+
+#: djangocms_translations/forms.py
+msgid "Translate title"
+msgstr ""
+
+#: djangocms_translations/forms.py
+msgid "Translate Meta & Teaser"
+msgstr ""
+
+#: djangocms_translations/forms.py
 msgid "No eligible pages found for this configuration."
 msgstr ""
 
@@ -154,113 +174,52 @@ msgstr ""
 msgid "Order without quote"
 msgstr ""
 
-#: djangocms_translations/forms.py djangocms_translations/mixins/forms.py
-msgid ""
-"<strong>({}) {}</strong><br>{}<br><br>Delivery until: {}<br>Price: {} {}"
+#: djangocms_translations/forms.py
+msgid "<strong>({}) {}</strong><br>{}"
 msgstr ""
 
-#: djangocms_translations/mixins/admin.py
-msgid "Export fields"
-msgstr ""
-
-#: djangocms_translations/mixins/admin.py
-msgid "Task status"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py
-msgid "master language"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py
-msgid "language"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Draft"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Open"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Pending quote from provider"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Pending approval of quote"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Pending submission to translation provider"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "In translation"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Import started"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Import failed"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "Imported"
+#: djangocms_translations/models.py
+msgid "Done"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Cancelled"
 msgstr ""
 
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "Supertext"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "GPT"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py
-msgid "App Translation request"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py
-msgid "App Translation requests"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py
-msgid " - {} objects"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "Order #{} - {}{}"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
+#: djangocms_translations/models.py
 msgid "Invalid status"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "Received invalid data from {}."
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "Failed to import plugins from {}."
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "Pending"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "Failed/cancelled"
-msgstr ""
-
-#: djangocms_translations/mixins/models.py djangocms_translations/models.py
-msgid "Done"
 msgstr ""
 
 #: djangocms_translations/models.py
@@ -268,7 +227,23 @@ msgid " - {} pages"
 msgstr ""
 
 #: djangocms_translations/models.py
+msgid "Order #{} - {}{}"
+msgstr ""
+
+#: djangocms_translations/models.py
 msgid "Cannot check status if there is no order."
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "Received invalid data from {}."
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "Page content couldn't be created"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "Failed to import plugins from {}."
 msgstr ""
 
 #: djangocms_translations/models.py
@@ -279,44 +254,106 @@ msgstr ""
 msgid "Invalid choice. Page must contain {} translation."
 msgstr ""
 
+#: djangocms_translations/models.py
+msgid "Pending"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "Failed/cancelled"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "master language"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "language"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "target language"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "App Translation request"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "App Translation requests"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid " - {} objects"
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid ""
+"Failed to import plugins to \"{}\". \n"
+"Corrupt plugin found: \"{}\""
+msgstr ""
+
+#: djangocms_translations/models.py
+msgid "Failed to import plugins to \"{}\"."
+msgstr ""
+
+#: djangocms_translations/providers/deepl.py
 #: djangocms_translations/providers/gpt.py
 #: djangocms_translations/providers/supertext.py
 msgid "Translation"
 msgstr ""
 
+#: djangocms_translations/providers/deepl.py
 #: djangocms_translations/providers/gpt.py
 #: djangocms_translations/providers/supertext.py
 msgid "Specialist translation"
 msgstr ""
 
+#: djangocms_translations/providers/deepl.py
 #: djangocms_translations/providers/gpt.py
 #: djangocms_translations/providers/supertext.py
 msgid "Transcreation"
 msgstr ""
 
+#: djangocms_translations/providers/deepl.py
 #: djangocms_translations/providers/gpt.py
 #: djangocms_translations/providers/supertext.py
 msgid "Express (6h)"
 msgstr ""
 
+#: djangocms_translations/providers/deepl.py
 #: djangocms_translations/providers/gpt.py
 #: djangocms_translations/providers/supertext.py
 msgid "24 hours"
 msgstr ""
 
+#: djangocms_translations/providers/deepl.py
 #: djangocms_translations/providers/gpt.py
 #: djangocms_translations/providers/supertext.py
 msgid "48 hours"
 msgstr ""
 
+#: djangocms_translations/providers/deepl.py
 #: djangocms_translations/providers/gpt.py
 #: djangocms_translations/providers/supertext.py
 msgid "3 days"
 msgstr ""
 
+#: djangocms_translations/providers/deepl.py
 #: djangocms_translations/providers/gpt.py
 #: djangocms_translations/providers/supertext.py
 msgid "1 week"
+msgstr ""
+
+#: djangocms_translations/providers/deepl.py
+msgid "DeepL"
+msgstr ""
+
+#: djangocms_translations/providers/gpt.py
+msgid "GPT"
+msgstr ""
+
+#: djangocms_translations/providers/supertext.py
+msgid "Supertext"
 msgstr ""
 
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_1.html
@@ -333,6 +370,10 @@ msgstr ""
 
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_2.html
 msgid "Send for quote"
+msgstr ""
+
+#: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_2.html
+msgid "Translate"
 msgstr ""
 
 #: djangocms_translations/templates/admin/djangocms_translations/translationrequest/bulk_create_step_2.html

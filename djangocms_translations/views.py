@@ -129,6 +129,9 @@ class CreateTranslationRequestView(CreateView):
         self.object.set_content_from_cms(translate_content=form.cleaned_data['translate_content'],
                                          translate_title=form.cleaned_data['translate_title'],
                                          translate_seo=form.cleaned_data['translate_seo'])
+        additional_info = form.cleaned_data.get('additional_info')
+        if additional_info:
+            self.object.set_provider_options(additional_info=additional_info)
         if self.object.provider.has_quote_selection:
             self.object.get_quote_from_provider()
         else:

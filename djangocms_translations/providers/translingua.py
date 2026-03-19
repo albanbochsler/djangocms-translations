@@ -58,8 +58,7 @@ class TranslinguaException(ProviderException):
 
 
 class TranslinguaProvider(BaseTranslationProvider):
-    # TODO: Set the actual Translingua API URL once their API is ready
-    API_LIVE_URL = getattr(settings, 'TRANSLINGUA_API_URL', 'https://ai-utils-allink.us.aldryn.io')
+    API_LIVE_URL = getattr(settings, 'TRANSLINGUA_API_URL', 'https://interface.translingua.ch/api')
     API_STAGE_URL = getattr(settings, 'TRANSLINGUA_API_STAGE_URL', 'http://host.docker.internal:8001')
 
     ORDER_TYPE_CHOICES = Choices(
@@ -80,45 +79,38 @@ class TranslinguaProvider(BaseTranslationProvider):
 
     def get_headers(self):
         return {
-            'Content-type': 'application/json; charset=UTF-8',
+            'Content-Type': 'application/json',
             'Accept': 'application/json',
         }
 
+    def get_auth(self):
+        return (
+            getattr(settings, 'TRANSLINGUA_USER', ''),
+            getattr(settings, 'TRANSLINGUA_PASSWORD', ''),
+        )
+
     def make_request(self, method, section, **kwargs):
-        response = requests.request(
+        request_kwargs = dict(
             method=method,
             url=self.get_url(section),
             headers=self.get_headers(),
-            **kwargs
+            **kwargs,
         )
+
+        # Only add Basic Auth for live API (staging/mock doesn't require it)
+        if not TRANSLATIONS_USE_STAGING:
+            request_kwargs['auth'] = self.get_auth()
+
+        response = requests.request(**request_kwargs)
 
         if not response.ok:
             raise TranslinguaException(response.text)
         return response
 
     def get_export_data(self):
-        from ..models import TranslationDirective
-
-        directives_dict = {}
-        glossary_obj = {}
-        for directive in TranslationDirective.objects.all():
-            directives_dict.setdefault(directive.pk, {})
-            directives_dict[directive.pk]['masterLanguage'] = LANGUAGE_MAPPING.get(directive.master_language)
-            for translation in directive.translations.all():
-                directives_dict[directive.pk][LANGUAGE_MAPPING.get(translation.language)] = {
-                    'directive_item': translation.directive_item,
-                }
-
-            for glossary in directive.translations_glossar.all():
-                glossary_obj.update({glossary.language: glossary.glossary_id})
-
         x_data = {
-            'ContentType': 'text/html',
             'SourceLang': LANGUAGE_MAPPING.get(self.request.source_language, self.request.source_language),
-            'TargetLanguages': [LANGUAGE_MAPPING.get(self.request.target_language, self.request.target_language)],
-            "Currency": "CHF",
-            "Directives": directives_dict,
-            "Glossaries": glossary_obj
+            'TargetLanguage': LANGUAGE_MAPPING.get(self.request.target_language, self.request.target_language),
         }
         groups = []
         fields_by_plugin = {}
@@ -310,9 +302,6 @@ class TranslinguaProvider(BaseTranslationProvider):
         data.update({
             'OrderName': request.provider_order_name,
             'ReferenceData': request.pk,
-            'ComponentName': 'djangocms-translations',
-            'Provider': 'translingua',
-            'ComponentVersion': djangocms_translations_version,
             'CallbackUrl': callback_url,
         })
 
@@ -356,8 +345,6 @@ class TranslinguaProvider(BaseTranslationProvider):
 
     def get_provider_options(self, **kwargs):
         option_map = {
-            'order_type': 'OrderTypeId',
-            'delivery_time': 'DeliveryId',
             'additional_info': 'AdditionalInformation',
         }
         return {

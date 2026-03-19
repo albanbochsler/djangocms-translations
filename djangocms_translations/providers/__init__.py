@@ -3,6 +3,7 @@ from importlib import import_module
 from .gpt import GptTranslationProvider
 from .deepl import DeeplProvider
 from .supertext import SupertextTranslationProvider
+from .translingua import TranslinguaProvider
 from django.conf import settings
 
 
@@ -16,6 +17,7 @@ ACTIVE_TRANSLATION_PROVIDERS = getattr(settings, 'ACTIVE_TRANSLATION_PROVIDERS',
     'djangocms_translations.providers.SupertextTranslationProvider',
     'djangocms_translations.providers.GptTranslationProvider',
     'djangocms_translations.providers.DeeplProvider',
+    'djangocms_translations.providers.TranslinguaProvider',
 ])
 
 
