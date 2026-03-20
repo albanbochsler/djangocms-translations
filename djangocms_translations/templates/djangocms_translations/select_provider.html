@@ -1,0 +1,54 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<form action="" method="post" style="padding: 50px 20px">
+    {% csrf_token %}
+    {% for obj in queryset %}
+        <input type="hidden" name="_selected_action" value="{{ obj.pk }}" />
+    {% endfor %}
+    <input type="hidden" name="action" value="{{ action }}" />
+    <input type="hidden" name="select_across" value="{{ select_across }}" />
+4
+    <fieldset class="module aligned">
+        {% if show_provider_select %}
+        <div class="form-row">
+            <label for="id_provider_backend">{% trans "Translation provider" %}:</label>
+            <select name="provider_backend" id="id_provider_backend">
+                {% for value, label in provider_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="provider_backend" value="{{ default_provider }}" />
+        {% endif %}
+
+        <div class="form-row" id="additional-info-row" {% if show_provider_select %}style="display:none"{% endif %}>
+            <label for="id_additional_info">{% trans "Additional information" %}:</label>
+            <textarea name="additional_info" id="id_additional_info" rows="3" style="width: 100%; max-width: 600px;"></textarea>
+            <p class="help">{% trans "Additional instructions for the translation provider." %}</p>
+        </div>
+    </fieldset>
+
+    <div class="submit-row">
+        <input type="submit" value="{% trans 'Submit' %}" class="default" />
+    </div>
+</form>
+
+{% if show_provider_select %}
+<script>
+(function() {
+    var providerField = document.getElementById('id_provider_backend');
+    var additionalInfoRow = document.getElementById('additional-info-row');
+    if (!providerField || !additionalInfoRow) return;
+
+    function toggle() {
+        additionalInfoRow.style.display = providerField.value === 'TranslinguaProvider' ? '' : 'none';
+    }
+    providerField.addEventListener('change', toggle);
+    toggle();
+})();
+</script>
+{% endif %}
+{% endblock %}

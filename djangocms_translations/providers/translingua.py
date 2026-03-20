@@ -24,14 +24,12 @@ def add_domain(url, domain=None):
         domain = Site.objects.get_current().domain
 
     url = URL(url)
-    if not settings.DEBUG:
+    print("url", url, "domain", domain)
+    if not TRANSLATIONS_USE_STAGING:
         url = url.replace(scheme='https')
         return str(url.replace(host=domain))
     else:
-        if TRANSLATIONS_USE_STAGING:
-            localhost_url = f'http://host.docker.internal:8000{url}'
-        else:
-            localhost_url = f'http://localhost:8000{url}'
+        localhost_url = f'http://host.docker.internal:8000{url}'
         return localhost_url
 
 
@@ -53,13 +51,20 @@ def _set_translation_import_content(enriched_content, plugin):
     return result
 
 
+# Translingua-specific overrides on top of the global LANGUAGE_MAPPING
+TRANSLINGUA_LANGUAGE_MAPPING = {
+    **LANGUAGE_MAPPING,
+    'en': 'en-GB',
+}
+
+
 class TranslinguaException(ProviderException):
     pass
 
 
 class TranslinguaProvider(BaseTranslationProvider):
     API_LIVE_URL = getattr(settings, 'TRANSLINGUA_API_URL', 'https://interface.translingua.ch/api')
-    API_STAGE_URL = getattr(settings, 'TRANSLINGUA_API_STAGE_URL', 'http://host.docker.internal:8001')
+    API_STAGE_URL = API_LIVE_URL
 
     ORDER_TYPE_CHOICES = Choices(
         ('TRANSLATION', 1, _('Translation')),
@@ -97,9 +102,7 @@ class TranslinguaProvider(BaseTranslationProvider):
             **kwargs,
         )
 
-        # Only add Basic Auth for live API (staging/mock doesn't require it)
-        if not TRANSLATIONS_USE_STAGING:
-            request_kwargs['auth'] = self.get_auth()
+        request_kwargs['auth'] = self.get_auth()
 
         response = requests.request(**request_kwargs)
 
@@ -109,8 +112,8 @@ class TranslinguaProvider(BaseTranslationProvider):
 
     def get_export_data(self):
         x_data = {
-            'SourceLang': LANGUAGE_MAPPING.get(self.request.source_language, self.request.source_language),
-            'TargetLanguage': LANGUAGE_MAPPING.get(self.request.target_language, self.request.target_language),
+            'SourceLang': TRANSLINGUA_LANGUAGE_MAPPING.get(self.request.source_language, self.request.source_language),
+            'TargetLanguage': TRANSLINGUA_LANGUAGE_MAPPING.get(self.request.target_language, self.request.target_language),
         }
         groups = []
         fields_by_plugin = {}

@@ -17,6 +17,7 @@ __all__ = [
 ]
 
 from ..conf import DEFAULT_TRANSLATION_PROVIDER
+from ..providers import ACTIVE_TRANSLATION_PROVIDERS, TRANSLATION_PROVIDERS
 
 
 class AllReadOnlyFieldsMixin(object):
@@ -162,12 +163,37 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
             """
             Action to translate the selected objects in bulk
             """
+            from django.http import HttpResponse
+            from django.template.loader import render_to_string
+
             app_label = self.model._meta.app_label
             model_name = self.model._meta.model_name
             user = request.user
             source_lang = request.GET.get('source_language', 'de')
             target_lang = lang_code
-            provider_backend = request.GET.get('provider_backend', DEFAULT_TRANSLATION_PROVIDER)
+
+            # Show provider/options form if not yet submitted
+            has_translingua = any('TranslinguaProvider' in cls for cls in ACTIVE_TRANSLATION_PROVIDERS)
+            needs_options_form = len(ACTIVE_TRANSLATION_PROVIDERS) > 1 or has_translingua
+
+            if needs_options_form and request.method == 'POST' and 'provider_backend' not in request.POST:
+                provider_choices = [
+                    (name, cls.NAME) for name, cls in TRANSLATION_PROVIDERS.items()
+                ]
+                context = {
+                    'title': f'Select translation provider for {lang_name}',
+                    'queryset': queryset,
+                    'provider_choices': provider_choices,
+                    'show_provider_select': len(ACTIVE_TRANSLATION_PROVIDERS) > 1,
+                    'default_provider': DEFAULT_TRANSLATION_PROVIDER if len(ACTIVE_TRANSLATION_PROVIDERS) == 1 else None,
+                    'action': request.POST.get('action'),
+                    'select_across': request.POST.get('select_across'),
+                    'opts': modeladmin.model._meta,
+                }
+                html = render_to_string('djangocms_translations/select_provider.html', context, request=request)
+                return HttpResponse(html)
+
+            provider_backend = request.POST.get('provider_backend') or request.GET.get('provider_backend', DEFAULT_TRANSLATION_PROVIDER)
 
             if request.method == 'POST':
                 translation_request = models.AppTranslationRequest.objects.create(
@@ -187,6 +213,11 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
                 ]
                 models.AppTranslationRequestItem.objects.bulk_create(translation_request_items)
                 translation_request.set_provider_order_name(app_label)
+
+                additional_info = request.POST.get('additional_info')
+                if additional_info:
+                    translation_request.set_provider_options(additional_info=additional_info)
+
                 translation_request.set_content_from_app()
                 if translation_request.provider.has_quote_selection:
                     translation_request.get_quote_from_provider()

@@ -734,6 +734,10 @@ class AppTranslationRequest(models.Model):
         self.provider_order_name = _('Order #{} - {}{}').format(self.pk, initial_page_title, bulk_text)
         self.save(update_fields=('provider_order_name',))
 
+    def set_provider_options(self, **kwargs):
+        self.provider_options = self.provider.get_provider_options(**kwargs)
+        self.save(update_fields=('provider_options',))
+
     def set_content_from_app(self):
         export_content = []
         export_fields = []

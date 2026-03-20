@@ -10,7 +10,7 @@ from cms.models import Page
 
 from . import models
 from .conf import DEFAULT_TRANSLATION_PROVIDER, DEFAULT_TRANSLATION_SOURCE_LANGUAGE
-from .providers import TRANSLATION_PROVIDER_CHOICES
+from .providers import TRANSLATION_PROVIDER_CHOICES, ACTIVE_TRANSLATION_PROVIDERS
 from .utils import get_page_url
 
 
@@ -102,7 +102,7 @@ class CreateTranslationForm(forms.ModelForm):
         self.user = kwargs.pop('user')
         super(CreateTranslationForm, self).__init__(*args, **kwargs)
 
-        if DEFAULT_TRANSLATION_PROVIDER:
+        if DEFAULT_TRANSLATION_PROVIDER and len(ACTIVE_TRANSLATION_PROVIDERS) == 1:
             self.fields['provider_backend'].initial = DEFAULT_TRANSLATION_PROVIDER
 
     def clean(self, *args, **kwargs):
@@ -157,7 +157,7 @@ class TranslateInBulkStep1Form(forms.ModelForm):
         self.user = kwargs.pop('user')
         super(TranslateInBulkStep1Form, self).__init__(*args, **kwargs)
 
-        if DEFAULT_TRANSLATION_PROVIDER:
+        if DEFAULT_TRANSLATION_PROVIDER and len(ACTIVE_TRANSLATION_PROVIDERS) == 1:
             self.fields['provider_backend'].initial = DEFAULT_TRANSLATION_PROVIDER
 
         if DEFAULT_TRANSLATION_SOURCE_LANGUAGE:
