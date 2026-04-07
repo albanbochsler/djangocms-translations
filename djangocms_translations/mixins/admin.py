@@ -1,3 +1,4 @@
+from django.contrib.sites.models import Site
 from django.db.models import ManyToOneRel
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -214,7 +215,24 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
                 models.AppTranslationRequestItem.objects.bulk_create(translation_request_items)
                 translation_request.set_provider_order_name(app_label)
 
-                additional_info = request.POST.get('additional_info')
+                # Build additional info with source URLs
+                parts = []
+                user_text = (request.POST.get('additional_info') or '').strip()
+                if user_text:
+                    parts.append(user_text)
+
+                source_urls = []
+                domain = Site.objects.get_current().domain
+                for obj in queryset:
+                    try:
+                        url = f'https://{domain}{obj.get_absolute_url()}'
+                        source_urls.append(url)
+                    except Exception:
+                        pass
+                if source_urls:
+                    parts.append('\n---\nSource pages:\n' + '\n'.join(source_urls))
+
+                additional_info = '\n'.join(parts) if parts else ''
                 if additional_info:
                     translation_request.set_provider_options(additional_info=additional_info)
 

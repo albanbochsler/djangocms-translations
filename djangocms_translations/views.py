@@ -124,12 +124,32 @@ class CreateTranslationRequestView(CreateView):
         form_kwargs['initial'] = self.request.GET.dict()
         return form_kwargs
 
+    def _build_additional_info(self, form):
+        parts = []
+        user_text = form.cleaned_data.get('additional_info', '').strip()
+        if user_text:
+            parts.append(user_text)
+
+        source_lang = self.object.source_language
+        source_urls = []
+        for item in self.object.items.select_related('source_cms_page__node__site'):
+            try:
+                url = get_page_url(item.source_cms_page, source_lang, is_https=True)
+                source_urls.append(url)
+            except Exception:
+                pass
+
+        if source_urls:
+            parts.append('\n---\nSource pages:\n' + '\n'.join(source_urls))
+
+        return '\n'.join(parts) if parts else ''
+
     def form_valid(self, form):
         response = super().form_valid(form)
         self.object.set_content_from_cms(translate_content=form.cleaned_data['translate_content'],
                                          translate_title=form.cleaned_data['translate_title'],
                                          translate_seo=form.cleaned_data['translate_seo'])
-        additional_info = form.cleaned_data.get('additional_info')
+        additional_info = self._build_additional_info(form)
         if additional_info:
             self.object.set_provider_options(additional_info=additional_info)
         if self.object.provider.has_quote_selection:
