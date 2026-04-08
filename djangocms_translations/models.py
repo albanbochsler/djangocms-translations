@@ -626,6 +626,7 @@ class TranslationDirectiveInline(models.Model):
         # default=settings.LANGUAGES[0][0],
     )
     directive_item = HTMLField("directive item", blank=True, null=True)
+    prompt_instruction = models.TextField("prompt instruction", blank=True, default="", help_text="Optional instruction appended to the translation prompt for this language (e.g. punctuation rules).")
 
     def __str__(self):
         return self.title if self.title else self.master.title
