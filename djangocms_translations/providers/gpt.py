@@ -118,6 +118,7 @@ class GptTranslationProvider(BaseTranslationProvider):
             for translation in directive.translations.all():
                 directives_dict[directive.pk][LANGUAGE_MAPPING.get(translation.language)] = {
                     'directive_item': translation.directive_item,
+                    'prompt_instruction': translation.prompt_instruction or '',
                 }
 
         x_data = {
