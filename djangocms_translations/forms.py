@@ -83,6 +83,12 @@ class CreateTranslationForm(forms.ModelForm):
         required=False,
         help_text=_('Additional instructions for the translation provider.'),
     )
+    desired_delivery_date = forms.DateField(
+        label=_('Desired delivery date'),
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False,
+        help_text=_('Required when using Translingua.'),
+    )
 
     class Meta:
         model = models.TranslationRequest
@@ -96,6 +102,7 @@ class CreateTranslationForm(forms.ModelForm):
             'translate_title',
             'translate_seo',
             'additional_info',
+            'desired_delivery_date',
         ]
 
     def __init__(self, *args, **kwargs):
@@ -109,6 +116,10 @@ class CreateTranslationForm(forms.ModelForm):
         super(CreateTranslationForm, self).clean(*args, **kwargs)
         if not self.is_valid():
             return
+
+        if self.cleaned_data.get('provider_backend') == 'TranslinguaProvider' \
+                and not self.cleaned_data.get('desired_delivery_date'):
+            self.add_error('desired_delivery_date', _('This field is required for Translingua.'))
 
         translation_request = models.TranslationRequest(
             source_language=self.cleaned_data['source_language'],

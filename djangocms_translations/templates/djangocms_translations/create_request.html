@@ -13,7 +13,7 @@
 
 	    <fieldset class="frm-horizontal">
 			{% for field in form.visible_fields %}
-				<p {% if field.name == 'additional_info' %}id="additional-info-row" style="display:none"{% endif %}>
+				<p {% if field.name == 'additional_info' %}id="additional-info-row" class="translingua-only" style="display:none"{% endif %}{% if field.name == 'desired_delivery_date' %}id="desired-delivery-date-row" class="translingua-only" style="display:none"{% endif %}>
                     {{ field.label_tag }}
                     {{ field }}
                     {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
@@ -26,11 +26,18 @@
 	<script>
 		(function() {
 			var providerField = document.getElementById('id_provider_backend');
-			var additionalInfoRow = document.getElementById('additional-info-row');
-			if (!providerField || !additionalInfoRow) return;
+			var translinguaRows = document.querySelectorAll('.translingua-only');
+			var dateField = document.getElementById('id_desired_delivery_date');
+			if (!providerField || !translinguaRows.length) return;
 
 			function toggle() {
-				additionalInfoRow.style.display = providerField.value === 'TranslinguaProvider' ? '' : 'none';
+				var show = providerField.value === 'TranslinguaProvider';
+				translinguaRows.forEach(function(row) {
+					row.style.display = show ? '' : 'none';
+				});
+				if (dateField) {
+					dateField.required = show;
+				}
 			}
 			providerField.addEventListener('change', toggle);
 			toggle();

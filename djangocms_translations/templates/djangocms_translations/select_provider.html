@@ -9,7 +9,7 @@
     {% endfor %}
     <input type="hidden" name="action" value="{{ action }}" />
     <input type="hidden" name="select_across" value="{{ select_across }}" />
-4
+
     <fieldset class="module aligned">
         {% if show_provider_select %}
         <div class="form-row">
@@ -24,10 +24,17 @@
         <input type="hidden" name="provider_backend" value="{{ default_provider }}" />
         {% endif %}
 
-        <div class="form-row" id="additional-info-row" {% if show_provider_select %}style="display:none"{% endif %}>
+        <div class="form-row translingua-only" id="additional-info-row" {% if show_provider_select %}style="display:none"{% endif %}>
             <label for="id_additional_info">{% trans "Additional information" %}:</label>
-            <textarea name="additional_info" id="id_additional_info" rows="3" style="width: 100%; max-width: 600px;"></textarea>
+            <textarea name="additional_info" id="id_additional_info" rows="3" style="width: 100%; max-width: 600px;">{{ additional_info_value }}</textarea>
             <p class="help">{% trans "Additional instructions for the translation provider." %}</p>
+        </div>
+
+        <div class="form-row translingua-only" id="desired-delivery-date-row" {% if show_provider_select %}style="display:none"{% endif %}>
+            <label for="id_desired_delivery_date">{% trans "Desired delivery date" %}:</label>
+            <input type="date" name="desired_delivery_date" id="id_desired_delivery_date" value="{{ desired_delivery_date_value }}" />
+            <p class="help">{% trans "Required when using Translingua." %}</p>
+            {% if date_error %}<p class="errornote" style="color:#ba2121">{{ date_error }}</p>{% endif %}
         </div>
     </fieldset>
 
@@ -40,14 +47,30 @@
 <script>
 (function() {
     var providerField = document.getElementById('id_provider_backend');
-    var additionalInfoRow = document.getElementById('additional-info-row');
-    if (!providerField || !additionalInfoRow) return;
+    var translinguaRows = document.querySelectorAll('.translingua-only');
+    var dateField = document.getElementById('id_desired_delivery_date');
+    if (!providerField || !translinguaRows.length) return;
 
     function toggle() {
-        additionalInfoRow.style.display = providerField.value === 'TranslinguaProvider' ? '' : 'none';
+        var show = providerField.value === 'TranslinguaProvider';
+        translinguaRows.forEach(function(row) {
+            row.style.display = show ? '' : 'none';
+        });
+        if (dateField) {
+            dateField.required = show;
+        }
     }
     providerField.addEventListener('change', toggle);
     toggle();
+})();
+</script>
+{% else %}
+<script>
+(function() {
+    var dateField = document.getElementById('id_desired_delivery_date');
+    if (dateField) {
+        dateField.required = true;
+    }
 })();
 </script>
 {% endif %}

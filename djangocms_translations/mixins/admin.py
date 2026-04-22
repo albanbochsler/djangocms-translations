@@ -177,7 +177,16 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
             has_translingua = any('TranslinguaProvider' in cls for cls in ACTIVE_TRANSLATION_PROVIDERS)
             needs_options_form = len(ACTIVE_TRANSLATION_PROVIDERS) > 1 or has_translingua
 
-            if needs_options_form and request.method == 'POST' and 'provider_backend' not in request.POST:
+            provider_backend_submitted = request.POST.get('provider_backend')
+
+            # Validate: date required when Translingua is chosen
+            date_error = None
+            if provider_backend_submitted == 'TranslinguaProvider' \
+                    and not (request.POST.get('desired_delivery_date') or '').strip():
+                date_error = 'This field is required for Translingua.'
+
+            if needs_options_form and request.method == 'POST' \
+                    and ('provider_backend' not in request.POST or date_error):
                 provider_choices = [
                     (name, cls.NAME) for name, cls in TRANSLATION_PROVIDERS.items()
                 ]
@@ -190,6 +199,9 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
                     'action': request.POST.get('action'),
                     'select_across': request.POST.get('select_across'),
                     'opts': modeladmin.model._meta,
+                    'additional_info_value': request.POST.get('additional_info', ''),
+                    'desired_delivery_date_value': request.POST.get('desired_delivery_date', ''),
+                    'date_error': date_error,
                 }
                 html = render_to_string('djangocms_translations/select_provider.html', context, request=request)
                 return HttpResponse(html)
@@ -233,8 +245,14 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
                     parts.append('\n---\nSource pages:\n' + '\n'.join(source_urls))
 
                 additional_info = '\n'.join(parts) if parts else ''
+                desired_delivery_date = (request.POST.get('desired_delivery_date') or '').strip()
+                options = {}
                 if additional_info:
-                    translation_request.set_provider_options(additional_info=additional_info)
+                    options['additional_info'] = additional_info
+                if desired_delivery_date:
+                    options['desired_delivery_date'] = desired_delivery_date
+                if options:
+                    translation_request.set_provider_options(**options)
 
                 translation_request.set_content_from_app()
                 if translation_request.provider.has_quote_selection:

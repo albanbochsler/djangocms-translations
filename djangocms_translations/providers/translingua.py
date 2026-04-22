@@ -349,6 +349,7 @@ class TranslinguaProvider(BaseTranslationProvider):
     def get_provider_options(self, **kwargs):
         option_map = {
             'additional_info': 'AdditionalInformation',
+            'desired_delivery_date': 'DesiredDeliveryDate',
         }
         return {
             v: kwargs[k]

@@ -150,8 +150,14 @@ class CreateTranslationRequestView(CreateView):
                                          translate_title=form.cleaned_data['translate_title'],
                                          translate_seo=form.cleaned_data['translate_seo'])
         additional_info = self._build_additional_info(form)
+        desired_delivery_date = form.cleaned_data.get('desired_delivery_date')
+        options = {}
         if additional_info:
-            self.object.set_provider_options(additional_info=additional_info)
+            options['additional_info'] = additional_info
+        if desired_delivery_date:
+            options['desired_delivery_date'] = desired_delivery_date.isoformat()
+        if options:
+            self.object.set_provider_options(**options)
         if self.object.provider.has_quote_selection:
             self.object.get_quote_from_provider()
         else:
