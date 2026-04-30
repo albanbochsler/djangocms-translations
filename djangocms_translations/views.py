@@ -130,6 +130,12 @@ class CreateTranslationRequestView(CreateView):
         if user_text:
             parts.append(user_text)
 
+        user = self.object.user
+        if user:
+            full_name = user.get_full_name() or user.get_username()
+            email = user.email or ''
+            parts.append('\n---\nRequested by:\n{} <{}>'.format(full_name, email))
+
         source_lang = self.object.source_language
         source_urls = []
         for item in self.object.items.select_related('source_cms_page__node__site'):

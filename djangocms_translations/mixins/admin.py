@@ -233,6 +233,11 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
                 if user_text:
                     parts.append(user_text)
 
+                if user:
+                    full_name = user.get_full_name() or user.get_username()
+                    email = user.email or ''
+                    parts.append('\n---\nRequested by:\n{} <{}>'.format(full_name, email))
+
                 source_urls = []
                 domain = Site.objects.get_current().domain
                 for obj in queryset:
