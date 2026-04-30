@@ -1,3 +1,4 @@
+import html
 import json
 from collections import OrderedDict, defaultdict
 
@@ -243,11 +244,12 @@ class TranslinguaProvider(BaseTranslationProvider):
             plugin_id = int(plugin_id)
 
             for item in group['Items']:
+                content = html.unescape(item['Content'])
                 if not item['Id'] == 'field':
                     plugin_dict = data[translation_request_item_pk][placeholder]
                     plugin = plugin_dict[plugin_id]
-                    plugin['data'][item['Id']] = item['Content'].replace('&amp;', '&').replace('&nbsp;', ' ')
-                    subplugins = _set_translation_import_content(item['Content'], plugin)
+                    plugin['data'][item['Id']] = content
+                    subplugins = _set_translation_import_content(content, plugin)
                     subplugins_already_processed.update(list(subplugins.keys()))
                     for subplugin_id, subplugin_content in subplugins.items():
                         try:
@@ -261,7 +263,7 @@ class TranslinguaProvider(BaseTranslationProvider):
                         "translation_request_item_pk": translation_request_item_pk,
                         "link_object_id": plugin_id,
                         "field_name": placeholder,
-                        "content": item['Content'].replace('&amp;', '&').replace('&nbsp;', ' ')
+                        "content": content
                     })
 
         # return_data is like {translation_request_item_pk: [<djangocms_transfer.ArchivedPlaceholder>, ]}
