@@ -49,12 +49,21 @@ def export_content(field, plugin_data):
 
 
 def _get_translation_export_content(field, raw_plugin):
-    plugin_class = get_plugin_class(raw_plugin['plugin_type'])
+    # Misconfigured DJANGOCMS_TRANSLATIONS_CONF (e.g. a field that doesn't exist
+    # on the plugin, or a plugin_type that isn't registered) must not abort the
+    # whole export — skip the field instead.
     try:
-        result = plugin_class.export_content(field, raw_plugin['data'])
+        plugin_class = get_plugin_class(raw_plugin['plugin_type'])
+    except KeyError:
+        return ('', [])
+    try:
+        return plugin_class.export_content(field, raw_plugin['data'])
     except AttributeError:
-        result = (raw_plugin['data'][field], [])
-    return result
+        pass
+    try:
+        return (raw_plugin['data'][field], [])
+    except KeyError:
+        return ('', [])
 
 
 def _set_translation_import_content(enriched_content, plugin):
