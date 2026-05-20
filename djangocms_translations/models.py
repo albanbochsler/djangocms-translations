@@ -824,7 +824,8 @@ class AppTranslationRequest(models.Model):
                 import_plugins_to_app(
                     placeholders=placeholders,
                     obj=obj,
-                    language=self.target_language
+                    language=self.target_language,
+                    user=self.user,
                 )
             except (IntegrityError, ObjectDoesNotExist):
                 # self._set_import_archive()

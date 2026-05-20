@@ -389,6 +389,12 @@ def get_app_export_fields(obj, app_label, language):
         if field.auto_created or not field.editable or field.many_to_many:
             continue
 
+    # parler-style models expose get_translation(); non-parler app models
+    # (e.g. djangocms-alias AliasContent) don't — skip field export for those.
+    if not hasattr(obj, 'get_translation'):
+        data.append({'fields': fields, 'inlines': inlines})
+        return data
+
     for field in obj.get_translation(language)._meta.get_fields():
         if not isinstance(getattr(obj.get_translation(language), field.name), str):
             continue
@@ -426,7 +432,67 @@ def get_app_inline_fields(obj, app_label, language):
     return inline_fields
 
 
-def import_plugins_to_app(placeholders, obj, language):
+def _resolve_alias_target_content(source_content, target_language, user=None):
+    """
+    djangocms-alias stores one AliasContent row per language. To translate a
+    static alias (Menu, Footer, …) we must write plugins into the target-
+    language sibling row, not back into the source row. Returns the target
+    AliasContent, creating it (and a draft Version, if versioning is enabled)
+    when missing. Returns None if AliasContent isn't installed.
+    """
+    try:
+        from djangocms_alias.models import AliasContent
+        from djangocms_alias.utils import is_versioning_enabled
+    except ImportError:
+        return None
+
+    if not isinstance(source_content, AliasContent):
+        return None
+
+    alias = source_content.alias
+    target = AliasContent.admin_manager.filter(alias=alias, language=target_language).first()
+
+    if target is None:
+        target = AliasContent.objects.create(
+            alias=alias,
+            language=target_language,
+            name=source_content.name,
+        )
+        if is_versioning_enabled():
+            from djangocms_versioning.models import Version
+            if user is None:
+                user = User.objects.filter(is_superuser=True).first()
+            Version.objects.create(content=target, created_by=user)
+        return target
+
+    # Existing target row — make sure we're writing into a draft, not a
+    # published/archived version (mirrors TranslationRequest.get_new_version).
+    if is_versioning_enabled():
+        from djangocms_versioning.constants import DRAFT
+        from djangocms_versioning.models import Version
+        version = (
+            Version.objects
+            .filter_by_content_grouping_values(target)
+            .order_by('-pk')
+            .first()
+        )
+        if version is None:
+            if user is None:
+                user = User.objects.filter(is_superuser=True).first()
+            Version.objects.create(content=target, created_by=user)
+        elif version.state != DRAFT:
+            new_version = version.copy(user or version.created_by)
+            target = new_version.content
+    return target
+
+
+def import_plugins_to_app(placeholders, obj, language, user=None):
+    # djangocms-alias: redirect import into the sibling AliasContent for the
+    # target language. For parler-style app models this is a no-op.
+    redirected = _resolve_alias_target_content(obj, language, user=user)
+    if redirected is not None:
+        obj = redirected
+
     old_placeholders = {}
     try:
         for placeholder in obj.get_placeholders():
@@ -459,6 +525,10 @@ def import_fields_to_app_model(return_fields, target_language):
 
         try:
             obj = obj_model.objects.get(id=request_item.link_object_id)
+            # Non-parler models (e.g. djangocms-alias AliasContent) have no
+            # translation table — placeholder content is the only payload.
+            if not hasattr(obj, 'has_translation'):
+                continue
             if not obj.has_translation(target_language):
                 obj.create_translation(target_language)
             field_name = item["field_name"]
