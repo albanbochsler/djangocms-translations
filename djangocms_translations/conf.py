@@ -29,3 +29,4 @@ LANGUAGE_MAPPING = {
     'sk': 'sk-SK',
     'sv': 'sv-SE',
 }
+LANGUAGE_MAPPING.update(getattr(settings, 'DJANGOCMS_TRANSLATIONS_LANGUAGE_MAPPING', {}))
