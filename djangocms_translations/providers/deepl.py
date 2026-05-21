@@ -200,29 +200,28 @@ class DeeplProvider(BaseTranslationProvider):
         try:
             if self.request.export_fields:
                 _fields = []
+                skip_keys = {'id', '_model', '_pk'}
                 for fields in json.loads(self.request.export_fields):
-                    for k, v in fields['inlines'].items():
+                    for outer_key, v in fields.get('inlines', {}).items():
                         for value in v:
-                            value_without_id = dict(
-                                value)  # Make a copy of value to avoid modifying the original dictionary
-                            id_value = value_without_id.pop(
-                                'id')  # Remove 'id' from the copied dictionary and store its value
-                            items = []
-                            for key, item in value_without_id.items():  # Use the copied dictionary without 'id'
-                                if item:
-                                    items.append({
-                                        'Id': "field",
-                                        'Content': item,
-                                    })
-                                if items:
-                                    _fields += [{
-                                        'GroupId': '{}:{}:{}'.format(
-                                            fields['translation_request_item_pk'],
-                                            key, k  # Use stored 'id' value here
-                                        ),
-                                        'Items': items
-                                    }]
-                                    items = []
+                            meta_model = value.get('_model')
+                            meta_pk = value.get('_pk', outer_key)
+                            for field_name, content in value.items():
+                                if field_name in skip_keys:
+                                    continue
+                                if not content:
+                                    continue
+                                wire_field = (
+                                    f'{meta_model}__{field_name}' if meta_model else field_name
+                                )
+                                _fields.append({
+                                    'GroupId': '{}:{}:{}'.format(
+                                        fields['translation_request_item_pk'],
+                                        wire_field,
+                                        meta_pk,
+                                    ),
+                                    'Items': [{'Id': 'field', 'Content': content}],
+                                })
                 x_data['Groups'] += _fields
         except Exception as e:
             pass

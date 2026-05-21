@@ -414,20 +414,66 @@ def get_app_export_fields(obj, app_label, language):
     return data
 
 
+def _walk_inline_relations(obj, related_path):
+    """Yield every descendant reachable by walking the given chain of reverse
+    relations. ``related_path`` is a list of accessor names; each hop calls
+    ``.all()`` on the resulting manager. An empty path yields nothing — the
+    parent itself is the top-level translation target, not an inline."""
+    if not related_path:
+        return
+    head, rest = related_path[0], related_path[1:]
+    manager = getattr(obj, head, None)
+    if manager is None:
+        return
+    try:
+        children = manager.all()
+    except Exception:
+        return
+    if not rest:
+        for child in children:
+            yield child
+        return
+    for child in children:
+        yield from _walk_inline_relations(child, rest)
+
+
 def get_app_inline_fields(obj, app_label, language):
+    """Collect translated fields for every inline configured in
+    ``DJANGOCMS_TRANSLATIONS_INLINE_CONF``.
+
+    Conf entry shape::
+
+        '<model_name>': {
+            'fields': [...],
+            'related_name': '<single_hop>',         # legacy, one level
+            'related_path': ['<hop1>', '<hop2>'],  # n levels deep
+        }
+
+    The outer dict key is ``f"{model_name}:{pk}"`` so sibling models with
+    overlapping PKs don't clobber each other. Each entry carries ``_model``
+    and ``_pk`` so downstream encoders can route writes back unambiguously.
+    """
     inline_fields = {}
     for key, value in TRANSLATIONS_INLINE_CONF.items():
+        related_path = value.get('related_path')
+        if related_path is None:
+            related_name = value.get('related_name')
+            related_path = [related_name] if related_name else []
+        if not related_path:
+            continue
         try:
-            for field in getattr(obj, value["related_name"]).all():
-                inline_fields.setdefault(field.pk, {})
-
-                inline_fields[field.pk] = [{
-                    object.name: getattr(field.get_translation(language), object.name)
-                    for object in field.get_translation(language)._meta.get_fields() if
-                    object.name != 'language_code' and object.name != 'master'
-                }]
-        except Exception as e:
-            pass
+            for child in _walk_inline_relations(obj, related_path):
+                translation = child.get_translation(language)
+                entry = {
+                    field.name: getattr(translation, field.name)
+                    for field in translation._meta.get_fields()
+                    if field.name not in ('language_code', 'master')
+                }
+                entry['_model'] = key
+                entry['_pk'] = child.pk
+                inline_fields[f'{key}:{child.pk}'] = [entry]
+        except Exception:
+            continue
 
     return inline_fields
 
@@ -514,8 +560,8 @@ def import_plugins_to_app(placeholders, obj, language, user=None):
 
 
 def import_fields_to_app_model(return_fields, target_language):
-    conf = TRANSLATIONS_INLINE_CONF.items()
     from djangocms_translations.models import AppTranslationRequestItem
+    conf = TRANSLATIONS_INLINE_CONF
 
     for item in return_fields:
         translation_request_item_pk = item["translation_request_item_pk"]
@@ -529,35 +575,59 @@ def import_fields_to_app_model(return_fields, target_language):
             # translation table — placeholder content is the only payload.
             if not hasattr(obj, 'has_translation'):
                 continue
+            field_name = item["field_name"]
+            content = item["content"].replace('&amp;', '&').replace('&nbsp;', ' ')
+
+            # Namespaced wire format ``model__field``: route directly to the
+            # inline row identified by link_object_id. No ambiguity, no PK guessing.
+            if '__' in field_name:
+                model_name, inline_field = field_name.split('__', 1)
+                inline_conf = conf.get(model_name)
+                if inline_conf and inline_field in inline_conf.get('fields', []):
+                    inline_model = apps.get_model(request_item.app_label, model_name)
+                    try:
+                        inline_obj = inline_model.objects.get(pk=link_object_id)
+                    except inline_model.DoesNotExist:
+                        continue
+                    if not inline_obj.has_translation(target_language):
+                        inline_obj.create_translation(target_language)
+                    setattr(inline_obj.get_translation(target_language), inline_field, content)
+                    inline_obj.get_translation(target_language).save()
+                    continue
+                # Unknown prefix: fall through and treat the literal field name
+                # as a parent field (preserves prior behavior for legacy data).
+
             if not obj.has_translation(target_language):
                 obj.create_translation(target_language)
-            field_name = item["field_name"]
-            content = item["content"]
-            # convert &amp; to & and &nbsp; to space in content
-            content = content.replace('&amp;', '&').replace('&nbsp;', ' ')
-            if conf:
-                for key, value in TRANSLATIONS_INLINE_CONF.items():
-                    try:
-                        if not field_name in value["fields"]:
-                            setattr(obj.get_translation(target_language), field_name, content)
-                            if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
-                                obj.get_translation(target_language).slug = slugify(content)
-                            obj.get_translation(target_language).save()
-                        else:
-                            # save to inline model
-                            inline_model = apps.get_model(request_item.app_label, key)
-                            inline_obj = inline_model.objects.get(pk=item["link_object_id"])
-                            if not inline_obj.has_translation(target_language):
-                                inline_obj.create_translation(target_language)
-                            setattr(inline_obj.get_translation(target_language), item["field_name"], content)
-                            inline_obj.get_translation(target_language).save()
-                    except Exception as e:
-                        pass
-            else:
-                setattr(obj.get_translation(target_language), field_name, content)
-                if hasattr(obj, "slug") and field_name == obj.slug_source_field_name:
-                    obj.get_translation(target_language).slug = slugify(content)
-                obj.get_translation(target_language).save()
+
+            # Legacy un-namespaced inline match: only entries declared the old
+            # way (``related_name`` / no ``related_path``) participate here, so
+            # the new menu-style entries can't accidentally claim a parent field.
+            handled_as_inline = False
+            for key, value in conf.items():
+                if value.get('related_path'):
+                    continue
+                if field_name not in value.get('fields', []):
+                    continue
+                try:
+                    inline_model = apps.get_model(request_item.app_label, key)
+                    inline_obj = inline_model.objects.get(pk=link_object_id)
+                    if not inline_obj.has_translation(target_language):
+                        inline_obj.create_translation(target_language)
+                    setattr(inline_obj.get_translation(target_language), field_name, content)
+                    inline_obj.get_translation(target_language).save()
+                    handled_as_inline = True
+                except Exception:
+                    pass
+            if handled_as_inline:
+                continue
+
+            # Parent field on the top-level translation target.
+            setattr(obj.get_translation(target_language), field_name, content)
+            if hasattr(obj, "slug") and field_name == getattr(obj, 'slug_source_field_name', None):
+                obj.get_translation(target_language).slug = slugify(content)
+            obj.get_translation(target_language).save()
+
         except Exception as e:
             print("Error: ", e)
             print("request_item: ", (request_item.app_label, request_item.link_model))
