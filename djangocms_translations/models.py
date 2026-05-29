@@ -500,7 +500,17 @@ class ArchivedPlaceholder(models.Model):
 
         for archived_plugin in plugins:
             if archived_plugin.parent_id:
-                parent = source_map[archived_plugin.parent_id]
+                parent = source_map.get(archived_plugin.parent_id)
+                if parent is None:
+                    # Orphaned / path-corrupted source tree: parent was not
+                    # imported. Attach to placeholder root instead of raising
+                    # a KeyError that would abort the archive import.
+                    logger.warning(
+                        "Parent plugin %s for plugin %s missing from "
+                        "source_map; attaching to placeholder root.",
+                        archived_plugin.parent_id, archived_plugin.pk,
+                    )
+                    parent = None
             else:
                 parent = None
 

@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import OrderedDict
 from functools import lru_cache
 from itertools import chain
@@ -32,6 +33,8 @@ try:
     from urllib.parse import urljoin
 except ImportError:
     from urlparse import urljoin
+
+logger = logging.getLogger(__name__)
 
 USE_HTTPS = getattr(settings, 'URLS_USE_HTTPS', False)
 
@@ -186,7 +189,19 @@ def import_plugins(plugins, placeholder, language, root_plugin_id=None):
             continue
 
         if archived_plugin.parent_id:
-            parent = source_map[archived_plugin.parent_id]
+            parent = source_map.get(archived_plugin.parent_id)
+            if parent is None:
+                # The referenced parent was not imported into this placeholder.
+                # This happens with orphaned / path-corrupted source plugin
+                # trees (parent deleted, or living in another placeholder).
+                # Attach to the placeholder root instead of raising a KeyError
+                # that would abort the whole provider callback import.
+                logger.warning(
+                    "Parent plugin %s for plugin %s missing from source_map; "
+                    "attaching to placeholder root.",
+                    archived_plugin.parent_id, archived_plugin.pk,
+                )
+                parent = root_plugin
         else:
             parent = root_plugin
 
