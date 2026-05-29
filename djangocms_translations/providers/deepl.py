@@ -81,7 +81,7 @@ class DeeplException(ProviderException):
 
 class DeeplProvider(BaseTranslationProvider):
     API_LIVE_URL = 'https://ai-utils-allink.us.aldryn.io'
-    API_STAGE_URL = 'http://host.docker.internal:8001'
+    API_STAGE_URL = 'http://host.docker.internal:8088'
     ORDER_TYPE_CHOICES = Choices(
         ('TRANSLATION', 6, _('Translation')),
         ('SPECIALIST_TRANSLATION', 8, _('Specialist translation')),

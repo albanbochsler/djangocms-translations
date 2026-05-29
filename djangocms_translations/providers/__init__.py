@@ -24,7 +24,7 @@ TRANSLATION_PROVIDERS = {
     for cls in ACTIVE_TRANSLATION_PROVIDERS
 }
 
-TRANSLATION_PROVIDER_CHOICES = (
+TRANSLATION_PROVIDER_CHOICES = tuple(
     (load_class_from_string(cls).__name__, load_class_from_string(cls).NAME)
     for cls in ACTIVE_TRANSLATION_PROVIDERS
 )
