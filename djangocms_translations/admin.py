@@ -21,6 +21,7 @@ from cms.operations import ADD_PLUGIN
 from cms.plugin_pool import plugin_pool
 
 from . import models, views
+from .conf import EDITORIAL_LANGUAGES
 from .forms import (
     TranslateInBulkStep1Form, TranslateInBulkStep2Form,
     TranslateInBulkStep3Form, TranslationDirectiveAdminInlineForm, TranslationGlossarAdminInlineForm
@@ -600,7 +601,7 @@ class TranslationDirectiveAdminInline(admin.TabularInline):
     classes = ['collapse']
     form = TranslationDirectiveAdminInlineForm
     can_delete = True
-    max_num = len(settings.LANGUAGES)
+    max_num = len(EDITORIAL_LANGUAGES)
 
 
 
@@ -611,7 +612,7 @@ class TranslationGlossarAdminInline(admin.TabularInline):
     classes = ['collapse']
     form = TranslationGlossarAdminInlineForm
     can_delete = True
-    max_num = len(settings.LANGUAGES)
+    max_num = len(EDITORIAL_LANGUAGES)
     readonly_fields = ('creation_time', 'glossary_id', "entries")
 
 

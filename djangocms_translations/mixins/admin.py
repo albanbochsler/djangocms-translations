@@ -16,7 +16,7 @@ __all__ = [
     'TranslateAppBulkMixin',
 ]
 
-from ..conf import DEFAULT_TRANSLATION_PROVIDER
+from ..conf import DEFAULT_TRANSLATION_PROVIDER, EDITORIAL_LANGUAGES
 
 
 class AllReadOnlyFieldsMixin(object):
@@ -143,7 +143,7 @@ class TranslateAppBulkMixin(admin.ModelAdmin):
 
     def get_actions(self, request):
         actions = super(TranslateAppBulkMixin, self).get_actions(request)
-        languages = getattr(settings, 'LANGUAGES', [])
+        languages = EDITORIAL_LANGUAGES
         for lang_code, lang_name in languages:
             if lang_code == 'de':
                 continue

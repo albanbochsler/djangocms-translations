@@ -20,7 +20,8 @@ from djangocms_versioning.constants import PUBLISHED, DRAFT
 from .utils import Choices
 from slugify import slugify
 
-from .conf import TRANSLATIONS_TITLE_EXTENSION, TRANSLATIONS_INLINE_CONF, DEFAULT_TRANSLATION_PROVIDER
+from .conf import TRANSLATIONS_TITLE_EXTENSION, TRANSLATIONS_INLINE_CONF, DEFAULT_TRANSLATION_PROVIDER, \
+    EDITORIAL_LANGUAGES
 from .fields import DynamicChoiceCharField
 from .providers import TRANSLATION_PROVIDERS, TRANSLATION_PROVIDER_CHOICES
 from .utils import get_plugin_form, get_page_export_data, get_plugin_class, \
@@ -61,8 +62,8 @@ class TranslationRequest(models.Model):
     date_submitted = models.DateTimeField(blank=True, null=True)
     date_received = models.DateTimeField(blank=True, null=True)
     date_imported = models.DateTimeField(blank=True, null=True)
-    source_language = DynamicChoiceCharField(max_length=10, choices=settings.LANGUAGES)
-    target_language = DynamicChoiceCharField(max_length=10, choices=settings.LANGUAGES)
+    source_language = DynamicChoiceCharField(max_length=10, choices=EDITORIAL_LANGUAGES)
+    target_language = DynamicChoiceCharField(max_length=10, choices=EDITORIAL_LANGUAGES)
     provider_backend = DynamicChoiceCharField(max_length=100, choices=TRANSLATION_PROVIDER_CHOICES)
     provider_order_name = models.CharField(max_length=255, blank=True)
     provider_options = models.JSONField(default=dict, blank=True)
@@ -596,7 +597,7 @@ class TranslationDirective(models.Model):
         # add TranslationDirectiveInline for each language, starting with master language
         super().save(*args, **kwargs)
 
-        for language, _ in settings.LANGUAGES:
+        for language, _ in EDITORIAL_LANGUAGES:
             if language == self.master_language:
                 TranslationDirectiveInline.objects.get_or_create(
                     title="{} - {}".format(self.title, language),
@@ -691,8 +692,8 @@ class AppTranslationRequest(models.Model):
     date_submitted = models.DateTimeField(blank=True, null=True)
     date_received = models.DateTimeField(blank=True, null=True)
     date_imported = models.DateTimeField(blank=True, null=True)
-    source_language = DynamicChoiceCharField(max_length=10, choices=settings.LANGUAGES)
-    target_language = DynamicChoiceCharField(max_length=10, choices=settings.LANGUAGES)
+    source_language = DynamicChoiceCharField(max_length=10, choices=EDITORIAL_LANGUAGES)
+    target_language = DynamicChoiceCharField(max_length=10, choices=EDITORIAL_LANGUAGES)
     provider_backend = DynamicChoiceCharField(max_length=100, choices=TRANSLATION_PROVIDER_CHOICES)
     provider_order_name = models.CharField(max_length=255, blank=True)
     provider_options = models.JSONField(default=dict, blank=True)

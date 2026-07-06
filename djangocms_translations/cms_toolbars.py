@@ -7,13 +7,14 @@ from django.apps import apps
 from cms.toolbar_base import CMSToolbar
 from cms.toolbar_pool import toolbar_pool
 
+from .conf import EDITORIAL_LANGUAGES
 from .utils import get_language_name
 
 
 @toolbar_pool.register
 class TranslationsToolbar(CMSToolbar):
     def populate(self):
-        all_languages = settings.LANGUAGES
+        all_languages = EDITORIAL_LANGUAGES
         if len(all_languages) < 2:
             return
 

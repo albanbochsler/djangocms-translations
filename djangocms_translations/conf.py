@@ -10,6 +10,8 @@ TRANSLATIONS_PAGE_CONF = getattr(settings, 'DJANGOCMS_TRANSLATIONS_PAGE_CONF', {
 TRANSLATIONS_TITLE_EXTENSION = getattr(settings, 'DJANGOCMS_TRANSLATIONS_TITLE_EXTENSION',
                                        {"app_label": "config", "model_name": "allinktitleextension"})
 
+EDITORIAL_LANGUAGES = getattr(settings, 'DJANGOCMS_TRANSLATIONS_LANGUAGES', settings.LANGUAGES)
+
 LANGUAGE_MAPPING = {
     'ch-de': 'de-CH',
     'ch-fr': 'fr-CH',

@@ -9,7 +9,7 @@ from cms.forms.fields import PageSelectFormField
 from cms.models import Page
 
 from . import models
-from .conf import DEFAULT_TRANSLATION_PROVIDER, DEFAULT_TRANSLATION_SOURCE_LANGUAGE
+from .conf import DEFAULT_TRANSLATION_PROVIDER, DEFAULT_TRANSLATION_SOURCE_LANGUAGE, EDITORIAL_LANGUAGES
 from .providers import TRANSLATION_PROVIDER_CHOICES
 from .utils import get_page_url
 
@@ -283,7 +283,7 @@ class TranslationDirectiveAdminForm(forms.ModelForm):
         super(TranslationDirectiveAdminForm, self).__init__(*args, **kwargs)
         self.fields['master_language'] = forms.CharField(
             label='master language',
-            widget=forms.Select(choices=settings.LANGUAGES),
+            widget=forms.Select(choices=EDITORIAL_LANGUAGES),
             required=False,
         )
 
@@ -300,7 +300,7 @@ class TranslationDirectiveAdminInlineForm(forms.ModelForm):
         super(TranslationDirectiveAdminInlineForm, self).__init__(*args, **kwargs)
         self.fields['language'] = forms.CharField(
             label='language',
-            widget=forms.Select(choices=settings.LANGUAGES),
+            widget=forms.Select(choices=EDITORIAL_LANGUAGES),
             required=False,
         )
 
@@ -318,7 +318,7 @@ class TranslationGlossarAdminInlineForm(forms.ModelForm):
         super(TranslationGlossarAdminInlineForm, self).__init__(*args, **kwargs)
         self.fields['language'] = forms.CharField(
             label='language',
-            widget=forms.Select(choices=settings.LANGUAGES),
+            widget=forms.Select(choices=EDITORIAL_LANGUAGES),
             required=False,
         )
 
