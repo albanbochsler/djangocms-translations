@@ -14,7 +14,7 @@ import djangocms_translations.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('cms', '0018_pagenode'),
+        ('cms', '0018_create_pagenode'),
         ('djangocms_translations', '0002_auto_20171122_1019'),
     ]
 

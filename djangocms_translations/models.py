@@ -4,7 +4,7 @@ import json
 import logging
 
 from cms.models import CMSPlugin, Placeholder, PageContent, EmptyPageContent
-from cms.models.fields import PageField, PlaceholderField
+from cms.models.fields import PageField
 from cms.utils.plugins import copy_plugins_to_placeholder
 from django.apps import apps
 from django.conf import settings
@@ -483,8 +483,11 @@ class ArchivedPlaceholder(models.Model):
         on_delete=models.CASCADE,
         related_name='archived_placeholders',
     )
-    placeholder = PlaceholderField(
-        _get_placeholder_slot,
+    placeholder = models.ForeignKey(
+        Placeholder,
+        on_delete=models.CASCADE,
+        null=True,
+        editable=False,
         related_name='archived_placeholders',
     )
     position = models.PositiveIntegerField(default=1)
