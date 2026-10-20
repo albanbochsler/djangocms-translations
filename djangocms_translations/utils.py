@@ -76,7 +76,7 @@ from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.db.models import BooleanField, IntegerField
+from django.db.models import BooleanField, EmailField, IntegerField, URLField
 from django.forms import modelform_factory, model_to_dict
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language_info
@@ -401,6 +401,9 @@ def get_app_export_fields(obj, app_label, language):
 
         if field.auto_created or not field.editable or field.many_to_many:
             continue
+        # Links and addresses are data, not prose: the translator would rewrite them.
+        if isinstance(field, (URLField, EmailField)):
+            continue
         fields[field.name] = getattr(obj.get_translation(language), field.name)
 
     if 'slug' in fields:
@@ -571,10 +574,6 @@ def import_fields_to_app_model(return_fields, target_language):
 
         try:
             obj = obj_model.objects.get(id=request_item.link_object_id)
-            # Non-parler models (e.g. djangocms-alias AliasContent) have no
-            # translation table — placeholder content is the only payload.
-            if not hasattr(obj, 'has_translation'):
-                continue
             field_name = item["field_name"]
             content = item["content"].replace('&amp;', '&').replace('&nbsp;', ' ')
 
@@ -596,6 +595,12 @@ def import_fields_to_app_model(return_fields, target_language):
                     continue
                 # Unknown prefix: fall through and treat the literal field name
                 # as a parent field (preserves prior behavior for legacy data).
+
+            # Non-parler parents (e.g. djangocms-alias AliasContent, or a plain
+            # container whose inlines hold the text) have no translation table
+            # of their own, so only the namespaced inline writes above apply.
+            if not hasattr(obj, 'has_translation'):
+                continue
 
             if not obj.has_translation(target_language):
                 obj.create_translation(target_language)
