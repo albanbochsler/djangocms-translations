@@ -1,0 +1,6 @@
+coverage[toml]
+django-app-helper
+django-parler>=2.3
+djangocms-admin-style
+psycopg2-binary
+setuptools

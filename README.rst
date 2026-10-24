@@ -188,12 +188,15 @@ Same as for single translation requests.
 Running Tests
 -------------
 
-You can run tests by executing::
+The suite runs on SQLite by default, with no provider calls (they are mocked)::
 
-    virtualenv env
+    python -m venv env
     source env/bin/activate
-    pip install -r tests/requirements.txt
-    python setup.py test
+    pip install -r tests/requirements/dj52_cms5.txt -e .
+    python test_settings.py
+
+Set ``DATABASE_URL`` (e.g. ``postgres://postgres:postgres@localhost/djangocms_test``) to run it
+on Postgres. ``tox`` runs the suite on every supported Python version and lints with ruff.
 
 
 .. |pypi| image:: https://badge.fury.io/py/djangocms-translations.svg

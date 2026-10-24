@@ -1,0 +1,25 @@
+line-length = 120
+extend-exclude = ["**/migrations/**", "venv"]
+
+[lint]
+select = [
+  "E",  # pycodestyle errors
+  "W",  # pycodestyle warnings
+  "F",  # pyflakes
+  "I",  # isort
+  "B",  # flake8-bugbear
+  "UP",  # pyupgrade
+]
+
+[lint.per-file-ignores]
+# Known bug: CMS 4 removed build_plugin_tree, so the "adjust import data" view raises a NameError.
+"djangocms_translations/cms_renderer.py" = ["F821"]
+
+[lint.isort]
+combine-as-imports = true
+known-first-party = ["djangocms_translations"]
+section-order = ["future", "standard-library", "django", "cms", "third-party", "first-party", "local-folder"]
+
+[lint.isort.sections]
+django = ["django"]
+cms = ["cms", "menus"]

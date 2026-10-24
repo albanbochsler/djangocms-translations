@@ -1,0 +1,18 @@
+name: Ruff
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Lint the tests
+        run: uvx ruff check --output-format=github tests test_settings.py
+      - name: Check the package for errors
+        run: uvx ruff check --output-format=github --select E9,F63,F7,F82 djangocms_translations
