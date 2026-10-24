@@ -84,6 +84,13 @@ sent from any given plugin to control unnecessary data isn't transferred::
 With ``DJANGOCMS_TRANSLATIONS_USE_STAGING`` set to ``True`` you can send the
 data to a staging environment rather than live.
 
+``DJANGOCMS_TRANSLATIONS_API_STAGE_URL`` overrides the provider's staging URL,
+e.g. ``'http://host.docker.internal:8088'``.
+
+With ``DEBUG`` on, ``DJANGOCMS_TRANSLATIONS_CALLBACK_URL`` sets the base URL the
+GPT and DeepL providers hand out for the callback, e.g.
+``'http://host.docker.internal:53655'`` when the project runs on that host port.
+
 With ``DJANGOCMS_TRANSLATIONS_BULK_BATCH_SIZE`` you can define the batch size
 to be transmitted to the translation provider. The default is ``100``.
 

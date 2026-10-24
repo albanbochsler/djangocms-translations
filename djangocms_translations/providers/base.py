@@ -21,7 +21,7 @@ class BaseTranslationProvider(object):
     @property
     def api_url(self):
         if conf.TRANSLATIONS_USE_STAGING:
-            return self.API_STAGE_URL
+            return conf.TRANSLATIONS_API_STAGE_URL or self.API_STAGE_URL
         return self.API_LIVE_URL
 
     def get_url(self, section):
