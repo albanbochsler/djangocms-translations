@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 import requests
 from djangocms_text_ckeditor.utils import plugin_to_tag, _plugin_tags_to_html, plugin_tags_to_id_list
 
-from ..conf import TRANSLATIONS_USE_STAGING, LANGUAGE_MAPPING
+from ..conf import TRANSLATIONS_USE_STAGING, TRANSLATIONS_CALLBACK_URL, LANGUAGE_MAPPING
 from ..utils import get_plugin_class, _object_version_data_hook
 from ..utils import Choices
 from yurl import URL
@@ -30,6 +30,8 @@ def add_domain(url, domain=None):
         url = url.replace(scheme='https')
         return str(url.replace(host=domain))
     else:
+        if TRANSLATIONS_CALLBACK_URL:
+            return f'{TRANSLATIONS_CALLBACK_URL.rstrip("/")}{url}'
         if TRANSLATIONS_USE_STAGING:
             localhost_url = f'http://host.docker.internal:8000{url}'
         else:

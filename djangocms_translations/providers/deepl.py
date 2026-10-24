@@ -12,7 +12,7 @@ from yurl import URL
 
 from .base import BaseTranslationProvider, ProviderException
 from .. import __version__ as djangocms_translations_version
-from ..conf import TRANSLATIONS_USE_STAGING, LANGUAGE_MAPPING
+from ..conf import TRANSLATIONS_USE_STAGING, TRANSLATIONS_CALLBACK_URL, LANGUAGE_MAPPING
 from ..utils import get_plugin_class, _object_version_data_hook
 from ..utils import (
     get_text_field_child_label, get_translatable_fields,
@@ -30,6 +30,8 @@ def add_domain(url, domain=None):
         url = url.replace(scheme='https')
         return str(url.replace(host=domain))
     else:
+        if TRANSLATIONS_CALLBACK_URL:
+            return f'{TRANSLATIONS_CALLBACK_URL.rstrip("/")}{url}'
         if TRANSLATIONS_USE_STAGING:
             localhost_url = f'http://host.docker.internal:8000{url}'
         else:
