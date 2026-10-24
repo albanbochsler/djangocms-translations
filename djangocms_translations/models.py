@@ -26,7 +26,8 @@ from .fields import DynamicChoiceCharField
 from .providers import TRANSLATION_PROVIDERS, TRANSLATION_PROVIDER_CHOICES
 from .utils import get_plugin_form, get_page_export_data, get_plugin_class, \
     import_plugins_to_content, create_page_content_translation, get_app_export_fields, get_app_export_data, \
-    import_plugins_to_app, import_fields_to_model, import_fields_to_app_model
+    import_plugins_to_app, import_fields_to_model, import_fields_to_app_model, get_working_version, \
+    get_link_object
 
 logger = logging.getLogger('djangocms_translations')
 
@@ -173,51 +174,40 @@ class TranslationRequest(models.Model):
         # on success, update the requests status as well
         self.order.save(update_fields=('state',))
 
-    def get_new_version(self, page, user, source_language, target_language):
+    def get_target_draft(self, page, user, source_language, target_language):
+        """Returns the draft version of the page's target content, creating or copying it when needed."""
         from djangocms_versioning.models import Version
 
-        # Try to get the published page contents or if not existing the drafts. object.filter automatically gets
-        # only the draft objects.
-        pagecontent_set = PageContent.objects.filter(page=page, language=target_language)
-        if not pagecontent_set.exists():
-            pagecontent_set = PageContent.admin_manager.filter(page=page, language=target_language)
+        pagecontent_set = PageContent.admin_manager.filter(page=page, language=target_language)
 
         # If no page content exists. Create the first page content with first version.
         if not pagecontent_set.exists():
             page_content = page.pagecontent_set.filter(language=source_language).last()
-            if page_content:
-                # creates page content and automatically a version
-                if not create_page_content_translation(page_content, user, target_language):
-                    return None
-            content = PageContent.admin_manager.get(page=page, language=target_language)
-            version = Version.objects.get(
-                content_type__model='pagecontent',
-                object_id=content.id,
-                state=DRAFT,
-            )
-        else:
-            version = Version.objects.filter(
-                content_type__model='pagecontent',
-                object_id__in=pagecontent_set.values_list('id', flat=True),
-            ).first()
-        # if version is draft use it, otherwise create a new version
-        if version.state == DRAFT:
-            new_version = version
-        else:
-            new_version = version.copy(version.created_by)
-            new_version.created_by = user
-            new_version.save()
+            if not page_content or not create_page_content_translation(page_content, user, target_language):
+                return None
 
+        version = get_working_version(Version.objects.filter(
+            content_type__model='pagecontent',
+            object_id__in=pagecontent_set.values_list('id', flat=True),
+        ))
+        if version.state == DRAFT:
+            return version
+
+        new_version = version.copy(version.created_by)
+        new_version.created_by = user
+        new_version.save()
+        return new_version
+
+    def get_new_version(self, page, user, source_language, target_language):
+        new_version = self.get_target_draft(page, user, source_language, target_language)
+        if not new_version:
+            return None
 
         content = new_version.content
-        placeholders = Placeholder.objects.filter(
-            object_id=content.id,
-        )
-
-        if not placeholders.exists():
+        if not content.placeholders.exists():
             content.rescan_placeholders()  # Need something to initialize the placeholders
 
-        for placeholder in placeholders:
+        for placeholder in content.placeholders.all():
             placeholder.clear(target_language)
 
         return new_version
@@ -823,7 +813,7 @@ class AppTranslationRequest(models.Model):
             model_label = translation_request_item.link_model
             link_object_id = translation_request_item.link_object_id
             obj_model = apps.get_model(app_label, model_label)
-            obj = obj_model.objects.get(id=link_object_id)
+            obj = get_link_object(obj_model, link_object_id)
 
             try:
                 import_plugins_to_app(
@@ -912,7 +902,7 @@ class AppTranslationRequestItem(models.Model):
         model_label = self.link_model
         link_object_id = self.link_object_id
         obj_model = apps.get_model(app_label, model_label)
-        obj = obj_model.objects.get(id=link_object_id)
+        obj = get_link_object(obj_model, link_object_id)
 
         data = get_app_export_data(obj, language)
         for d in data:
@@ -925,7 +915,7 @@ class AppTranslationRequestItem(models.Model):
         model_label = self.link_model
         link_object_id = self.link_object_id
         obj_model = apps.get_model(app_label, model_label)
-        obj = obj_model.objects.get(id=link_object_id)
+        obj = get_link_object(obj_model, link_object_id)
         data = get_app_export_fields(obj, app_label, language)
         for d in data:
             d['translation_request_item_pk'] = self.pk

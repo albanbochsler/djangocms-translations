@@ -80,7 +80,7 @@ from django.db.models import BooleanField, EmailField, IntegerField, URLField
 from django.forms import modelform_factory, model_to_dict
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language_info
-from djangocms_versioning.constants import DRAFT
+from djangocms_versioning.constants import DRAFT, PUBLISHED
 from djangocms_versioning.models import Version
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
@@ -97,6 +97,20 @@ except ImportError:
     from urlparse import urljoin
 
 USE_HTTPS = getattr(settings, 'URLS_USE_HTTPS', False)
+
+
+def get_link_object(model, pk):
+    # Versioned models hide drafts in `objects`, but the admin lists them for translation.
+    return model._base_manager.get(pk=pk)
+
+
+def get_working_version(versions):
+    """Returns the version a translation builds on: the draft, else the published one, else the newest."""
+    return (
+        versions.filter(state=DRAFT).first()
+        or versions.filter(state=PUBLISHED).first()
+        or versions.order_by('-pk').first()
+    )
 
 
 @lru_cache()
@@ -508,7 +522,6 @@ def _resolve_alias_target_content(source_content, target_language, user=None):
             name=source_content.name,
         )
         if is_versioning_enabled():
-            from djangocms_versioning.models import Version
             if user is None:
                 user = User.objects.filter(is_superuser=True).first()
             Version.objects.create(content=target, created_by=user)
@@ -517,19 +530,14 @@ def _resolve_alias_target_content(source_content, target_language, user=None):
     # Existing target row — make sure we're writing into a draft, not a
     # published/archived version (mirrors TranslationRequest.get_new_version).
     if is_versioning_enabled():
-        from djangocms_versioning.constants import DRAFT
-        from djangocms_versioning.models import Version
-        version = (
-            Version.objects
-            .filter_by_content_grouping_values(target)
-            .order_by('-pk')
-            .first()
-        )
+        version = get_working_version(Version.objects.filter_by_content_grouping_values(target))
         if version is None:
             if user is None:
                 user = User.objects.filter(is_superuser=True).first()
             Version.objects.create(content=target, created_by=user)
-        elif version.state != DRAFT:
+        elif version.state == DRAFT:
+            target = version.content
+        else:
             new_version = version.copy(user or version.created_by)
             target = new_version.content
     return target
@@ -573,7 +581,7 @@ def import_fields_to_app_model(return_fields, target_language):
         obj_model = apps.get_model(request_item.app_label, request_item.link_model)
 
         try:
-            obj = obj_model.objects.get(id=request_item.link_object_id)
+            obj = get_link_object(obj_model, request_item.link_object_id)
             field_name = item["field_name"]
             content = item["content"].replace('&amp;', '&').replace('&nbsp;', ' ')
 
@@ -656,60 +664,60 @@ def import_fields_to_model(return_fields, language):
         source_language = request_item.translation_request.source_language
 
         title_extension = title_extension_model.objects.get(pk=link_object_id)
-        translations = title_extension.extended_object.page.pagecontent_set(manager="admin_manager")
+        page = title_extension.extended_object.page
+        translations = page.pagecontent_set(manager="admin_manager")
 
         # Handle title translation creation if it doesn't exist
-        if not translations.filter(language=language).exists():
-            if field_name == "title":
-                # Create new PageContent and associated URLs
-                for page_url in title_extension.extended_object.page.urls.filter(language=source_language):
-                    new_url_data = model_to_dict(page_url)
-                    new_url_data.update({
-                        "language": language,
-                        "slug": slugify(content),
-                        "path": title_extension.extended_object.page.get_path_for_slug(slugify(content), language),
-                        "page": title_extension.extended_object.page
-                    })
-                    new_url_data.pop("id", None)
-                    PageUrl.objects.with_user(user).create(**new_url_data)
+        if field_name == "title" and not translations.filter(language=language).exists():
+            # Create new PageContent and associated URLs
+            for page_url in page.urls.filter(language=source_language):
+                new_url_data = model_to_dict(page_url)
+                new_url_data.update({
+                    "language": language,
+                    "slug": slugify(content),
+                    "path": page.get_path_for_slug(slugify(content), language),
+                    "page": page
+                })
+                new_url_data.pop("id", None)
+                PageUrl.objects.with_user(user).create(**new_url_data)
 
-                # Create the new title and associated extension
-                source_title = translations.filter(language=source_language).last()
-                if source_title:
-                    new_title_data = model_to_dict(source_title)
-                    new_title_data.update({
-                        "language": language,
-                        "title": content,
-                        "template": source_title.template,
-                        "page": source_title.page
-                    })
-                    new_title_data.pop("id", None)
-                    new_title_obj = PageContent.objects.with_user(user).create(**new_title_data)
-                    new_title_obj.save()
+            # Create the new title and associated extension
+            source_title = translations.filter(language=source_language).last()
+            if source_title:
+                new_title_data = model_to_dict(source_title)
+                new_title_data.update({
+                    "language": language,
+                    "title": content,
+                    "template": source_title.template,
+                    "page": source_title.page
+                })
+                new_title_data.pop("id", None)
+                new_title_obj = PageContent.objects.with_user(user).create(**new_title_data)
+                new_title_obj.save()
 
-                    # Update page languages
-                    new_title_obj.page.update_languages(
-                        [trans.language for trans in translations.current_content()]
-                    )
-                    new_title_obj.page.save()
+                # Update page languages
+                new_title_obj.page.update_languages(
+                    [trans.language for trans in translations.current_content()]
+                )
+                new_title_obj.page.save()
 
-                    title_extension_model.objects.create(extended_object=new_title_obj)
-        else:
-            # Update or create title_extension
-            title_translation = translations.filter(language=language).last()
-            if title_translation:
-                title_extension = title_extension_model.objects.filter(extended_object=title_translation).last()
-                if not title_extension:
-                    title_extension = title_extension_model.objects.create(extended_object=title_translation)
-            else:
-                title_extension = None  # Skip if no title translation exists
+                title_extension_model.objects.create(extended_object=new_title_obj)
+            continue
 
-        # Update fields for the title_extension
-        if title_extension and field_name != "title":
-            setattr(title_extension, field_name, content)
-            title_extension.save()
+        # Write into the same draft the plugins are imported into, never into a published or archived version.
+        draft = request_item.translation_request.get_target_draft(page, user, source_language, language)
+        if not draft:
+            continue
+        target_content = draft.content
 
-    title_extension.save()
+        if field_name == "title":
+            target_content.title = content
+            target_content.save(update_fields=["title"])
+            continue
+
+        title_extension = title_extension_model.objects.get_or_create(extended_object=target_content)[0]
+        setattr(title_extension, field_name, content)
+        title_extension.save()
 
 
 
