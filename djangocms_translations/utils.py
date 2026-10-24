@@ -67,7 +67,7 @@ class Choices:
         return list(self._by_value.keys())
 
 from cms import api
-from cms.models import Page, CMSPlugin, Placeholder, PlaceholderRelationField, PageContent, PageUrl
+from cms.models import Page, CMSPlugin, PlaceholderRelationField, PageContent, PageUrl
 from cms.plugin_pool import plugin_pool
 from cms.utils.plugins import get_bound_plugins
 from django.apps import apps
@@ -290,12 +290,8 @@ def import_plugins(plugins, placeholder, language, root_plugin_id=None):
 
 @transaction.atomic
 def import_plugins_to_content(placeholders, language, content):
-    placeholder_obj_list = Placeholder.objects.filter(
-        object_id=content.id,
-    )
-
     page_placeholders = OrderedDict()
-    for placeholder in placeholder_obj_list:
+    for placeholder in content.placeholders.all():
         page_placeholders[placeholder.slot] = placeholder
 
     for archived_placeholder in placeholders:
