@@ -89,10 +89,10 @@ class TranslationTestCase(CMSTestCase):
             Version.objects.get_for_content(content).publish(self.user)
         return page
 
-    def add_translation(self, page, title="Home", body="<p>Hello world</p>", publish=True):
+    def add_translation(self, page, title="Home", body="<p>Hello world</p>", publish=True, slug="home"):
         """An existing English translation, the state a re-translation starts from."""
         content = PageContent.objects.with_user(self.user).create(
-            page=page, language="en", title=title, template="fullwidth.html"
+            page=page, language="en", title=title, template="fullwidth.html", slug=slug
         )
         add_plugin(content_placeholder(content), "TextPlugin", "en", body=body)
         PageTitleExtension.objects.create(extended_object=content, og_title="Swiss cloud")
@@ -106,6 +106,9 @@ class TranslationTestCase(CMSTestCase):
 
     def draft(self, page, language="en"):
         return self.page_versions(page, language).get(state="draft").content
+
+    def publish_draft(self, page, language="en"):
+        self.page_versions(page, language).get(state="draft").publish(self.user)
 
     def translate_pages(self, *pages, translate_content=True, translate_title=True, translate_seo=True):
         """Runs a page request end to end: export, submit, then the provider's callback."""

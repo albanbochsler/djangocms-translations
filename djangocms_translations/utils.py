@@ -643,6 +643,21 @@ def import_fields_to_app_model(return_fields, target_language):
             continue
 
 
+def get_translated_slug(page, title, language):
+    """The slug of the translated title, suffixed while another page of the site has its path."""
+    base = slugify(title)
+    slug, number = base, 1
+    while True:
+        path = page.get_path_for_slug(slug, language)
+        if path is None:
+            return slug
+        taken = PageUrl.objects.filter(site=page.site_id, language=language, path=path).exclude(page=page)
+        if not taken.exists():
+            return slug
+        number += 1
+        slug = f"{base}-{number}"
+
+
 def import_fields_to_model(return_fields, language):
     title_conf = TRANSLATIONS_TITLE_EXTENSION
     title_extension_model = apps.get_model(title_conf["app_label"], title_conf["model_name"])
@@ -666,12 +681,13 @@ def import_fields_to_model(return_fields, language):
         # Handle title translation creation if it doesn't exist
         if field_name == "title" and not translations.filter(language=language).exists():
             # Create new PageContent and associated URLs
+            slug = get_translated_slug(page, content, language)
             for page_url in page.urls.filter(language=source_language):
                 new_url_data = model_to_dict(page_url)
                 new_url_data.update({
                     "language": language,
-                    "slug": slugify(content),
-                    "path": page.get_path_for_slug(slugify(content), language),
+                    "slug": slug,
+                    "path": page.get_path_for_slug(slug, language),
                     "page": page
                 })
                 new_url_data.pop("id", None)
@@ -681,8 +697,10 @@ def import_fields_to_model(return_fields, language):
             source_title = translations.filter(language=source_language).last()
             if source_title:
                 new_title_data = model_to_dict(source_title)
+                # The published content's slug becomes the URL: the source's would route the page in its language.
                 new_title_data.update({
                     "language": language,
+                    "slug": slug,
                     "title": content,
                     "template": source_title.template,
                     "page": source_title.page
@@ -708,7 +726,13 @@ def import_fields_to_model(return_fields, language):
 
         if field_name == "title":
             target_content.title = content
-            target_content.save(update_fields=["title"])
+            update_fields = ["title"]
+            # A slug still in the source language follows the title; one an editor translated stays.
+            source_slugs = set(translations.filter(language=source_language).values_list("slug", flat=True))
+            if not target_content.slug or target_content.slug in source_slugs:
+                target_content.slug = get_translated_slug(page, content, language)
+                update_fields.append("slug")
+            target_content.save(update_fields=update_fields)
             continue
 
         title_extension = title_extension_model.objects.get_or_create(extended_object=target_content)[0]

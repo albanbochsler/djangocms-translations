@@ -3,8 +3,8 @@ import unittest
 from django.test import override_settings
 from django.urls import reverse
 
-from cms.api import add_plugin
-from cms.models import PageContent
+from cms.api import add_plugin, create_page
+from cms.models import PageContent, PageUrl
 
 from djangocms_alias.models import Alias, AliasContent, Category
 from djangocms_text_ckeditor.models import Text
@@ -48,6 +48,30 @@ class NewPageTranslationTestCase(TranslationTestCase):
         draft = self.draft(page)
         self.assertEqual(draft.title, "[en] Startseite")
         self.assertEqual(draft.pagetitleextension.og_title, "[en] Schweizer Cloud")
+
+    def test_slugs_a_new_page_from_the_translated_title(self):
+        page = self.create_page()
+
+        self.translate_pages(page)
+
+        self.assertEqual(self.draft(page).slug, "en-startseite")
+
+    def test_routes_a_new_page_by_the_translated_slug_once_published(self):
+        page = self.create_page()
+
+        self.translate_pages(page)
+        self.publish_draft(page)
+
+        self.assertEqual(PageUrl.objects.get(page=page, language="en").path, "en-startseite")
+
+    def test_suffixes_a_slug_another_page_has(self):
+        other = self.create_page("Andere")
+        self.add_translation(other, slug="en-startseite")
+        page = self.create_page()
+
+        self.translate_pages(page)
+
+        self.assertEqual(self.draft(page).slug, "en-startseite-2")
 
     @unittest.expectedFailure
     @override_settings(
@@ -112,6 +136,63 @@ class ExistingPageTranslationTestCase(TranslationTestCase):
         self.translate_pages(self.page)
 
         self.assertEqual(self.draft(self.page).title, "[en] Startseite")
+
+    def test_follows_the_title_with_a_slug_left_in_the_source_language(self):
+        self.add_translation(self.page, slug="startseite")
+
+        self.translate_pages(self.page)
+
+        self.assertEqual(self.draft(self.page).slug, "en-startseite")
+
+    def test_follows_the_title_with_an_empty_slug(self):
+        self.add_translation(self.page, slug="")
+
+        self.translate_pages(self.page)
+
+        self.assertEqual(self.draft(self.page).slug, "en-startseite")
+
+    def test_keeps_a_translated_slug(self):
+        self.add_translation(self.page, slug="home")
+
+        self.translate_pages(self.page)
+
+        self.assertEqual(self.draft(self.page).slug, "home")
+
+    def test_leaves_the_published_slug_alone(self):
+        published = self.add_translation(self.page, slug="startseite")
+
+        self.translate_pages(self.page)
+
+        published.refresh_from_db()
+        self.assertEqual(published.slug, "startseite")
+        self.assertEqual(PageUrl.objects.get(page=self.page, language="en").path, "startseite")
+
+    def test_moves_the_children_with_the_page_once_published(self):
+        self.add_translation(self.page, slug="startseite")
+        child = create_page("Kind", "fullwidth.html", "de", created_by=self.user, parent=self.page)
+        self.add_translation(child, title="Child", slug="child")
+
+        self.translate_pages(self.page)
+        self.publish_draft(self.page)
+
+        self.assertEqual(PageUrl.objects.get(page=child, language="en").path, "en-startseite/child")
+
+    def test_translates_only_the_title_and_slug_when_asked_for_titles_only(self):
+        self.add_translation(self.page, slug="startseite")
+
+        self.translate_pages(self.page, translate_content=False, translate_seo=False)
+
+        draft = self.draft(self.page)
+        self.assertEqual((draft.title, draft.slug), ("[en] Startseite", "en-startseite"))
+        self.assertEqual(text_bodies(draft), ["<p>Hello world</p>"])
+        self.assertEqual(draft.pagetitleextension.og_title, "Swiss cloud")
+
+    def test_keeps_the_slug_when_titles_are_not_translated(self):
+        self.add_translation(self.page, slug="startseite")
+
+        self.translate_pages(self.page, translate_title=False)
+
+        self.assertEqual(self.draft(self.page).slug, "startseite")
 
     def test_writes_the_title_extension_on_the_draft(self):
         published = self.add_translation(self.page)
